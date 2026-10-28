@@ -1,0 +1,1324 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="TOEIC Part 5 の穴埋め問題を、車で正しい単語にぶつかって練習するアーケードゲーム。Claude AI で作りました。">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Part 5 Sprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Dela+Gothic+One&family=IBM+Plex+Mono:wght@500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* Layout: one column — question panel over a free-steering highway canvas; the start screen pairs setup with a live demo drive */
+:root{
+  --paper:#F3F5F2; --sheet:#FFFFFF; --ink:#1B2023; --muted:#5A6663; --line:#D2DBD7;
+  --print:#1D7364; --print-soft:#E0EEE9; --on-print:#FFFFFF;
+  --graphite:#2E3337; --redpen:#D03828; --redpen-soft:#FBE6E2; --on-redpen:#FFFFFF;
+  --scene:#0F2A3D;
+  --display:"Dela Gothic One","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --ui:"BIZ UDPGothic","Hiragino Sans","Yu Gothic","Meiryo",system-ui,sans-serif;
+  --serif:"Source Serif 4",Georgia,"Times New Roman",serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#111615; --sheet:#192020; --ink:#E6ECE9; --muted:#97A49F; --line:#2B3633;
+    --print:#5BC0AC; --print-soft:#1C302B; --on-print:#0C1715;
+    --graphite:#D8DEDB; --redpen:#FF6B5B; --redpen-soft:#3A1F1B; --on-redpen:#1A0B09; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111615; --sheet:#192020; --ink:#E6ECE9; --muted:#97A49F; --line:#2B3633;
+  --print:#5BC0AC; --print-soft:#1C302B; --on-print:#0C1715;
+  --graphite:#D8DEDB; --redpen:#FF6B5B; --redpen-soft:#3A1F1B; --on-redpen:#1A0B09; color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--paper); color:var(--ink); font-family:var(--ui); font-size:15px; line-height:1.65;
+  padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:24px 48px;
+}
+.wrap{max-width:1000px; margin:0 auto; word-break:auto-phrase}
+h1,h2,h3{margin:0; text-wrap:balance; font-weight:400}
+p{margin:0}
+button{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--print); outline-offset:3px}
+.muted{color:var(--muted)}
+.eyebrow{font-size:12px; letter-spacing:.08em; color:var(--print); font-weight:700}
+.eyebrow.red{color:var(--redpen)}
+.chip{
+  display:inline-flex; align-items:center; font-size:11.5px; font-weight:700; letter-spacing:.06em;
+  padding:2px 9px; border:1px solid var(--print); color:var(--print); border-radius:999px; line-height:1.6; white-space:nowrap;
+}
+kbd{font:500 11px var(--mono); padding:1px 6px; border:1px solid currentColor; border-radius:4px; opacity:.7}
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:10px;
+  min-height:46px; padding:0 20px; border-radius:10px; border:1.5px solid var(--print);
+  background:transparent; color:var(--print); font-weight:700; cursor:pointer;
+}
+.btn:hover{background:var(--print-soft)}
+.btn.primary{background:var(--print); color:var(--on-print)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{border-color:var(--line); color:var(--ink)}
+.btn:disabled{opacity:.4; cursor:default}
+.btn.big{min-height:56px; font-size:17px; width:100%}
+.link{background:none; border:0; padding:6px 2px; color:var(--muted); cursor:pointer; text-decoration:underline; text-underline-offset:3px}
+.link.armed{color:var(--redpen); font-weight:700}
+
+/* answer-sheet bubble + red-pen marks */
+.bub{
+  position:relative; flex:none; width:26px; height:26px; border-radius:50%;
+  border:1.5px solid var(--print); background:var(--sheet);
+  display:grid; place-items:center; font:600 12px var(--mono); color:var(--print);
+}
+.mark{position:absolute; inset:-10px; width:calc(100% + 20px); height:calc(100% + 20px); overflow:visible; pointer-events:none}
+.mark path{
+  fill:none; stroke:var(--redpen); stroke-width:4.5; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:180; stroke-dashoffset:180; animation:draw .42s cubic-bezier(.3,.6,.4,1) forwards;
+}
+.mark.ng path:nth-child(2){animation-delay:.14s}
+.mark.still path{animation:none; stroke-dashoffset:0}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* the highway canvas */
+.stage{position:relative; width:100%; height:clamp(240px,48vh,460px); border-radius:14px; overflow:hidden; background:var(--scene); touch-action:none; user-select:none; -webkit-user-select:none}
+.stage canvas{display:block; width:100%; height:100%; cursor:grab}
+.stage.demo{height:auto; aspect-ratio:4 / 3}
+.stage.demo canvas{cursor:default}
+
+/* ---------- start ---------- */
+.hero{display:grid; gap:12px; margin-bottom:30px}
+.hero h1{font-family:var(--display); font-size:clamp(2.6rem,1.6rem + 4.4vw,4.6rem); line-height:1; letter-spacing:-.01em}
+.hero h1 .h-a{color:var(--print)}
+.lede{max-width:42em; color:var(--muted); font-size:15.5px}
+.start-grid{display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:36px; align-items:start}
+.setup{display:grid; gap:24px}
+.group{border:0; padding:0; margin:0; display:grid; gap:10px; min-width:0}
+.group legend{padding:0; margin-bottom:10px; font-weight:700; display:flex; align-items:center; gap:10px}
+.step{display:inline-grid; place-items:center; width:22px; height:22px; border-radius:50%; background:var(--ink); color:var(--paper); font:600 12px var(--mono)}
+.levels{display:grid; gap:10px}
+.level{
+  display:grid; grid-template-columns:auto minmax(0,1fr) auto; column-gap:14px; row-gap:1px; align-items:center;
+  padding:14px 16px; background:var(--sheet); border:1.5px solid var(--line); border-radius:12px; cursor:pointer;
+}
+.level:hover,.mode:hover{border-color:var(--print)}
+.level.on,.mode.on{border-color:var(--print); box-shadow:0 0 0 3px var(--print-soft)}
+.level input,.mode input{position:absolute; opacity:0; pointer-events:none}
+.level:has(input:focus-visible),.mode:has(input:focus-visible){outline:2px solid var(--print); outline-offset:3px}
+.level .bub{grid-column:1; grid-row:1 / span 3; width:28px; height:28px}
+.lv-main,.lv-desc,.lv-words{grid-column:2}
+.level.on .bub{background:var(--graphite); border-color:var(--graphite)}
+.lv-main{display:flex; align-items:baseline; gap:10px}
+.lv-score{font-family:var(--display); font-size:24px; line-height:1.2}
+.lv-name{font-weight:700; font-size:13px; color:var(--print)}
+.lv-desc{font-size:13px; color:var(--muted); line-height:1.5}
+.lv-words{font:italic 400 14px var(--serif)}
+.lv-best{grid-column:3; grid-row:1 / span 3; text-align:right; font:600 14px var(--mono); font-variant-numeric:tabular-nums; display:grid}
+.lv-best small{font:700 10.5px var(--ui); color:var(--muted); letter-spacing:.06em}
+.modes{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.mode{display:grid; gap:2px; padding:12px 14px; border:1.5px solid var(--line); border-radius:12px; background:var(--sheet); cursor:pointer}
+.mode b{font-size:15px}
+.mode span{font-size:12.5px; color:var(--muted)}
+.opts{display:grid; gap:12px; padding:14px 16px; background:var(--sheet); border:1.5px solid var(--line); border-radius:12px}
+.opt-row{display:grid; grid-template-columns:6.5em minmax(0,1fr); gap:10px; align-items:center}
+.opt-row > span{font-size:13px; font-weight:700}
+.seg{display:flex; flex-wrap:wrap; gap:6px}
+.seg label{position:relative; display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border:1.5px solid var(--line); border-radius:999px; background:var(--sheet); font-size:13px; cursor:pointer}
+.seg label:hover{border-color:var(--print)}
+.seg input,.switch input{position:absolute; opacity:0; pointer-events:none}
+.seg label.on{border-color:var(--print); background:var(--print-soft); color:var(--print); font-weight:700}
+.seg label:has(input:focus-visible){outline:2px solid var(--print); outline-offset:2px}
+.swatch{width:14px; height:14px; border-radius:50%; border:1px solid var(--muted)}
+.switch{position:relative; display:inline-flex; align-items:center; gap:10px; font-size:13px; cursor:pointer}
+.switch i{position:relative; flex:none; width:40px; height:22px; border-radius:999px; background:var(--line); transition:background .15s}
+.switch i::after{content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:var(--sheet); transition:transform .15s}
+.switch input:checked + i{background:var(--print)}
+.switch input:checked + i::after{transform:translateX(18px)}
+.switch input:focus-visible + i{outline:2px solid var(--print); outline-offset:2px}
+.hint-ja{font-size:13.5px; color:var(--muted); margin-top:-4px}
+.facts{list-style:none; margin:0; padding:16px 0 0; border-top:1px solid var(--line); display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px}
+.facts li{display:grid; gap:4px; align-content:start}
+.facts b{font:600 20px var(--mono); color:var(--print); white-space:nowrap}
+.facts span{font-size:12.5px; color:var(--muted); line-height:1.5}
+.sample{display:grid; gap:10px; position:sticky; top:calc(env(safe-area-inset-top,0px) + 16px)}
+.sample-head{display:flex; align-items:center; gap:10px; font-size:13px}
+.demo-q{font:400 1rem/1.55 var(--serif)}
+.demo-q b{font:600 14px var(--mono); margin-right:6px}
+.blank{font-family:var(--mono); letter-spacing:.06em; color:var(--muted); padding:0 .15em}
+.blank.filled{font-family:var(--serif); font-weight:600; letter-spacing:0; color:var(--redpen); border-bottom:2px solid var(--redpen)}
+footer{margin-top:48px; padding-top:16px; border-top:1px solid var(--line); font-size:11.5px; color:var(--muted); display:grid; gap:2px}
+
+/* ---------- play ---------- */
+.play{max-width:860px; margin:0 auto; display:grid; gap:12px}
+.hud{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap}
+.hud-l,.hud-r{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+.brand-sm{font-family:var(--display); font-size:17px}
+.scorebox{display:grid; text-align:right; line-height:1.1}
+.scorebox small{font:700 10px var(--ui); letter-spacing:.1em; color:var(--muted)}
+.scorebox b{font:600 24px var(--mono); font-variant-numeric:tabular-nums}
+.combo{font-family:var(--display); color:var(--redpen); font-size:15px}
+.combo.pop{animation:pop .35s ease-out}
+@keyframes pop{0%{transform:scale(1.35)}100%{transform:scale(1)}}
+
+.strip{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(36px,1fr)); gap:8px 4px}
+.cell{display:grid; justify-items:center; gap:3px; font:500 10px var(--mono); color:var(--muted)}
+.dot{position:relative; width:18px; height:18px; border-radius:50%; border:1.5px solid var(--print); background:var(--sheet)}
+.dot.filled{background:var(--graphite); border-color:var(--graphite)}
+.dot .mark{inset:-7px; width:calc(100% + 14px); height:calc(100% + 14px)}
+.cell.cur{color:var(--ink); font-weight:600}
+.cell.cur .dot{box-shadow:0 0 0 3px var(--print-soft); background:var(--print-soft)}
+
+.qpanel{background:var(--sheet); border:1px solid var(--line); border-radius:14px; padding:14px 18px 16px; display:grid; gap:10px; min-width:0}
+.qhead{display:flex; align-items:center; gap:10px}
+.qnum{font:600 16px var(--mono)}
+.meter{flex:1; display:flex; align-items:center; justify-content:flex-end; gap:10px; font-size:12px; color:var(--muted); min-width:0; white-space:nowrap}
+.meter b{font:600 14px var(--mono); color:var(--ink); font-variant-numeric:tabular-nums; display:inline-block; min-width:2.2em; text-align:right}
+.bar{flex:0 1 160px; height:6px; border-radius:999px; background:var(--line); overflow:hidden; min-width:40px}
+.bar i{display:block; height:100%; background:var(--print); transform-origin:left center}
+.meter.low,.meter.low b{color:var(--redpen)}
+.meter.low .bar i{background:var(--redpen)}
+.qtext{font:400 clamp(1.08rem,.95rem + .6vw,1.32rem)/1.55 var(--serif); word-break:normal; overflow-wrap:break-word}
+.qtext.sm{font-size:1.04rem}
+.words{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px}
+.wchip{display:flex; align-items:center; gap:10px; min-height:42px; padding:6px 10px; min-width:0; border:1.5px solid var(--line); border-radius:10px; background:var(--sheet); font:400 1rem/1.25 var(--serif)}
+.wchip .cw{min-width:0; overflow-wrap:anywhere}
+.wchip.hit .bub{background:var(--graphite); border-color:var(--graphite); color:var(--sheet)}
+.wchip.right{border-color:var(--redpen); background:var(--redpen-soft)}
+.wchip.dim{opacity:.45}
+.howto{font-size:12.5px; color:var(--muted)}
+
+.toast{
+  position:absolute; left:50%; top:12px; transform:translateX(-50%); padding:5px 16px; border-radius:999px;
+  background:var(--sheet); font-family:var(--display); font-size:17px; white-space:nowrap; box-shadow:0 3px 0 rgba(0,0,0,.25);
+  animation:toast .3s cubic-bezier(.2,.9,.3,1.3); pointer-events:none;
+}
+.toast.ok{color:var(--print)}
+.toast.ng{color:var(--redpen)}
+@keyframes toast{from{transform:translateX(-50%) scale(.6); opacity:0}to{transform:translateX(-50%) scale(1); opacity:1}}
+
+.controls{display:grid; grid-template-columns:1fr 1.3fr 1fr; gap:10px}
+.ctl{
+  min-height:56px; border-radius:12px; border:1.5px solid var(--line); background:var(--sheet); color:var(--ink);
+  font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+  touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+}
+.ctl:hover{border-color:var(--print)}
+.ctl.nitro{background:var(--redpen); border-color:var(--redpen); color:var(--on-redpen); font-family:var(--display); font-weight:400; letter-spacing:.08em}
+.ctl.nitro.on{box-shadow:0 0 0 4px var(--redpen-soft)}
+@media (hover:none){.ctl kbd{display:none}}
+
+.pit{background:var(--sheet); border:1.5px solid var(--redpen); border-radius:14px; padding:18px 20px; display:grid; gap:14px}
+.pit-head{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.v{font-family:var(--display); font-size:24px}
+.v.ng{color:var(--redpen)}
+.exp{margin:0; display:grid; gap:8px}
+.exp div{display:grid; grid-template-columns:5.5em minmax(0,1fr); gap:10px}
+.exp dt{font-size:12px; font-weight:700; color:var(--muted); padding-top:2px; letter-spacing:.04em}
+.exp dd{margin:0}
+.ans{font-family:var(--serif); font-size:1.05rem}
+.pit .btn{justify-self:start}
+
+/* ---------- result ---------- */
+.result{max-width:820px; margin:0 auto; display:grid; gap:24px}
+.res-head{display:grid; gap:6px}
+.res-head h2{font-family:var(--display); font-size:34px}
+.res-top{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:20px; align-items:center; background:var(--sheet); border:1px solid var(--line); border-radius:14px; padding:22px 24px}
+.res-score{display:grid; gap:2px}
+.res-score small{font:700 11px var(--ui); letter-spacing:.1em; color:var(--muted)}
+.res-score .big{font:600 clamp(3rem,2rem + 4vw,4.4rem)/1 var(--mono); font-variant-numeric:tabular-nums}
+.res-score .best{font-size:13px; color:var(--muted)}
+.res-score .best.new{color:var(--redpen); font-weight:700}
+.stamp{
+  width:124px; height:124px; border-radius:50%; display:grid; place-items:center; text-align:center;
+  border:3px solid var(--redpen); color:var(--redpen); font-family:var(--display); font-size:14px; line-height:1.35;
+  box-shadow:inset 0 0 0 4px var(--sheet), inset 0 0 0 6px var(--redpen);
+  transform:rotate(-9deg); animation:stamp .4s cubic-bezier(.2,.9,.3,1.2) both;
+}
+@keyframes stamp{from{transform:rotate(-9deg) scale(1.5); opacity:.2}to{transform:rotate(-9deg) scale(1); opacity:1}}
+.stats{margin:0; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px}
+.stats div{display:grid; gap:2px; padding:12px 0; border-top:2px solid var(--ink)}
+.stats dt{font-size:12px; font-weight:700; color:var(--muted)}
+.stats dd{margin:0; font:600 26px var(--mono); font-variant-numeric:tabular-nums}
+.stats small{font:400 12px var(--ui); color:var(--muted)}
+.actions{display:flex; flex-wrap:wrap; gap:10px}
+.panel{display:grid; gap:14px}
+.panel h3{font-weight:700; font-size:16px; display:flex; gap:10px; align-items:baseline}
+.types{display:grid; gap:10px}
+.trow{display:grid; grid-template-columns:3.5em minmax(0,1fr) 4em; gap:12px; align-items:center}
+.tname{font-weight:700; font-size:14px}
+.tbar{height:10px; border-radius:999px; background:var(--line); overflow:hidden}
+.tbar i{display:block; height:100%; background:var(--print); border-radius:999px}
+.tnum{font:500 13px var(--mono); text-align:right; font-variant-numeric:tabular-nums}
+.hint{font-size:13.5px; background:var(--print-soft); padding:12px 14px; border-radius:10px}
+.miss{background:var(--sheet); border:1px solid var(--line); border-radius:12px; padding:16px 18px; display:grid; gap:10px}
+.miss-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px}
+.miss-head .yours{color:var(--muted)}
+.miss-head .right{color:var(--redpen); font-weight:700}
+
+@media (max-width:820px){
+  .start-grid{grid-template-columns:minmax(0,1fr)}
+  .sample{position:static}
+}
+@media (max-width:640px){
+  .words{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .play .strip{display:none}
+  .qpanel{padding:12px 14px 14px}
+  .meter .lbl,.howto{display:none}
+}
+@media (max-width:560px){
+  .facts{grid-template-columns:minmax(0,1fr)}
+  .facts li{grid-template-columns:5.5em minmax(0,1fr); align-items:baseline}
+  .modes{grid-template-columns:minmax(0,1fr)}
+  .opt-row{grid-template-columns:minmax(0,1fr); gap:6px}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .res-top{padding:18px}
+  .stamp{width:96px; height:96px; font-size:11.5px}
+  .exp div{grid-template-columns:minmax(0,1fr); gap:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .mark path{animation:none; stroke-dashoffset:0}
+  .stamp,.combo.pop,.toast{animation:none}
+}
+</style>
+
+</head>
+<body>
+<div class="wrap" lang="ja">
+
+  <!-- START -->
+  <section id="start">
+    <header class="hero">
+      <p class="eyebrow">TOEIC® L&amp;R 対策 · Part 5 短文穴埋め問題</p>
+      <h1><span class="h-a">Part 5</span> Sprint</h1>
+      <p class="lede">ハイウェイを走りながら、空所に入る正しい単語に車をぶつけるアーケードゲームです。ハンドルはあなたが操作します。まちがった単語はよけて、正しい単語にだけぶつかりましょう。まちがった単語にぶつかるとクラッシュしてピットイン。日本語の解説を読んでから再スタートします。</p>
+    </header>
+
+    <div class="start-grid">
+      <div class="setup">
+        <fieldset class="group">
+          <legend><span class="step">1</span>レベルを選ぶ</legend>
+          <div class="levels">
+            <label class="level" for="lv-600">
+              <input type="radio" name="level" id="lv-600" value="600">
+              <span class="bub"></span>
+              <span class="lv-main"><span class="lv-score">600</span><span class="lv-name">基礎</span></span>
+              <span class="lv-desc">ビジネスの基本語彙と、時制・前置詞などの基本文法</span>
+              <span class="lv-words" lang="en">submit · refund · invoice</span>
+              <span class="lv-best" id="best-600"></span>
+            </label>
+            <label class="level" for="lv-730">
+              <input type="radio" name="level" id="lv-730" value="730">
+              <span class="bub"></span>
+              <span class="lv-main"><span class="lv-score">730</span><span class="lv-name">中級</span></span>
+              <span class="lv-desc">品詞の見分け、前置詞と接続詞の区別。単語が少しゆれます</span>
+              <span class="lv-words" lang="en">reimburse · postpone · in advance</span>
+              <span class="lv-best" id="best-730"></span>
+            </label>
+            <label class="level" for="lv-860">
+              <input type="radio" name="level" id="lv-860" value="860">
+              <span class="bub"></span>
+              <span class="lv-main"><span class="lv-score">860+</span><span class="lv-name">上級</span></span>
+              <span class="lv-desc">倒置・仮定法・分詞構文。単語が大きくゆれて、間隔も短め</span>
+              <span class="lv-words" lang="en">stipulate · contingent · expedite</span>
+              <span class="lv-best" id="best-860"></span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend><span class="step">2</span>コースを選ぶ</legend>
+          <div class="modes">
+            <label class="mode" for="md-10"><input type="radio" name="mode" id="md-10" value="10"><b>ショート</b><span>10問 · 約3分</span></label>
+            <label class="mode" for="md-30"><input type="radio" name="mode" id="md-30" value="30"><b>フル</b><span>30問 · 約9分(本番と同じ問題数)</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend><span class="step">3</span>オプション</legend>
+          <div class="opts">
+            <div class="opt-row"><span>スピード</span><div class="seg">
+              <label for="sp-slow"><input type="radio" name="speed" id="sp-slow" value="slow">ゆっくり</label>
+              <label for="sp-normal"><input type="radio" name="speed" id="sp-normal" value="normal">ふつう</label>
+              <label for="sp-fast"><input type="radio" name="speed" id="sp-fast" value="fast">はやい</label>
+            </div></div>
+            <div class="opt-row"><span>問題タイプ</span><div class="seg">
+              <label for="ty-all"><input type="radio" name="qtype" id="ty-all" value="all">すべて</label>
+              <label for="ty-pos"><input type="radio" name="qtype" id="ty-pos" value="品詞">品詞</label>
+              <label for="ty-voc"><input type="radio" name="qtype" id="ty-voc" value="語彙">語彙</label>
+              <label for="ty-gra"><input type="radio" name="qtype" id="ty-gra" value="文法">文法</label>
+            </div></div>
+            <div class="opt-row"><span>車の色</span><div class="seg">
+              <label for="car-red"><input type="radio" name="car" id="car-red" value="red"><i class="swatch" style="background:#D03828"></i>赤</label>
+              <label for="car-blue"><input type="radio" name="car" id="car-blue" value="blue"><i class="swatch" style="background:#2F6FD0"></i>青</label>
+              <label for="car-yellow"><input type="radio" name="car" id="car-yellow" value="yellow"><i class="swatch" style="background:#E8B021"></i>黄</label>
+              <label for="car-white"><input type="radio" name="car" id="car-white" value="white"><i class="swatch" style="background:#EEF1F0"></i>白</label>
+            </div></div>
+            <div class="opt-row"><span>ヒント</span><label class="switch" for="opt-hint"><input type="checkbox" id="opt-hint"><i></i>プレイ中に和訳を表示する</label></div>
+            <div class="opt-row"><span>効果音</span><label class="switch" for="opt-sound"><input type="checkbox" id="opt-sound"><i></i>音を鳴らす</label></div>
+          </div>
+        </fieldset>
+
+        <button class="btn primary big" id="go" type="button">スタート</button>
+
+        <ul class="facts">
+          <li><b>← →</b><span>押している間ハンドルを切ります。道路をドラッグしても操作できます</span></li>
+          <li><b>↑ NITRO</b><span>押している間ブースト。早く正解するほど高得点</span></li>
+          <li><b>×2.0</b><span>連続で正解するとコンボ倍率が上がります(最大)</span></li>
+        </ul>
+      </div>
+
+      <aside class="sample" aria-label="デモ走行">
+        <div class="sample-head"><span class="chip">デモ走行</span><span class="muted">careful をよけて、carefully にぶつかる</span></div>
+        <div class="stage demo"><canvas id="demo" aria-label="道路を走る車が、まちがった単語をよけて正しい単語 carefully にぶつかるデモ"></canvas></div>
+        <p class="demo-q" lang="en"><b>101.</b>Please read the instructions <span class="blank">-------</span> before using the machine.</p>
+      </aside>
+    </div>
+
+    <footer>
+      <span>Claude AI と一緒に作りました。問題はすべてオリジナルです。</span>
+      <span lang="en">TOEIC is a registered trademark of ETS. This product is not endorsed or approved by ETS.</span>
+    </footer>
+  </section>
+
+  <!-- PLAY -->
+  <section id="play" class="play" hidden>
+    <div class="hud">
+      <div class="hud-l"><span class="brand-sm">Part 5 Sprint</span><span class="chip" id="hud-level"></span></div>
+      <div class="hud-r">
+        <span class="combo" id="hud-combo" aria-live="polite"></span>
+        <div class="scorebox"><small>SCORE</small><b id="hud-score">0</b></div>
+        <button class="link" id="quit" type="button">やめる</button>
+      </div>
+    </div>
+    <ol class="strip" id="strip" aria-label="答案用紙"></ol>
+    <div class="qpanel">
+      <div class="qhead">
+        <span class="qnum" id="qnum">101.</span><span class="chip" id="qtag"></span>
+        <div class="meter" id="meter"><span class="lbl">ボーナス</span><div class="bar"><i id="mbar"></i></div><span><b id="tleft">0.0</b> 秒</span></div>
+      </div>
+      <p class="qtext" id="qtext" lang="en"></p>
+      <p class="hint-ja" id="qja" hidden></p>
+      <div class="words" id="words" lang="en"></div>
+      <p class="howto">正しい単語にぶつかろう。数字は単語が出てくる順番です。</p>
+    </div>
+    <div class="stage" id="stage">
+      <canvas id="cv" aria-label="ハイウェイ。前から4つの単語が順番に流れてくる。車を左右に動かして正しい単語にぶつける"></canvas>
+      <div class="toast" id="toast" hidden aria-live="polite"></div>
+    </div>
+    <div class="controls">
+      <button class="ctl" id="left" type="button"><kbd>←</kbd>左</button>
+      <button class="ctl nitro" id="nitro" type="button">NITRO <kbd>↑</kbd></button>
+      <button class="ctl" id="right" type="button">右<kbd>→</kbd></button>
+    </div>
+    <div class="pit" id="pit" hidden aria-live="polite"></div>
+  </section>
+
+  <!-- RESULT -->
+  <section id="result" class="result" hidden></section>
+</div>
+
+<script>
+const TYPES = ["品詞", "語彙", "文法"];
+// first: seconds before the first word arrives; gap: seconds between words; sway: how far words drift sideways
+const LEVEL_META = {
+  "600": { title: "600", label: "基礎", first: 9, gap: 2.4, sway: 0 },
+  "730": { title: "730", label: "中級", first: 10, gap: 2.2, sway: 0.12 },
+  "860": { title: "860+", label: "上級", first: 11, gap: 2.0, sway: 0.22 },
+};
+const TYPE_TIPS = {
+  "品詞": "空所の前後を見て、名詞・動詞・形容詞・副詞のどれが入るかを先に決めましょう。選択肢を全部訳す必要はありません。",
+  "語彙": "単語は responsible for や in advance のようなセット(コロケーション)で覚えると、本番で迷いにくくなります。",
+  "文法": "後ろが「主語+動詞」なら接続詞、名詞だけなら前置詞。時制は last year などの「時を表す語句」をヒントにしましょう。",
+};
+
+// Each question: c[0] is the correct answer; choices are shuffled at play time.
+const BANK = {
+"600": [
+{t:"品詞",q:"The manager asked all staff to ____ their expense reports by Friday.",c:["submit","submission","submitted","submitting"],ja:"部長は全スタッフに、金曜日までに経費報告書を提出するよう求めた。",ex:"「ask + 人 + to + 動詞の原形」の形。to の後ろには動詞の原形が入る。submission は名詞。",w:"submit 提出する / expense report 経費報告書"},
+{t:"文法",q:"Ms. Tanaka will ____ the new employees at 9:00 A.M. tomorrow.",c:["meet","met","meeting","meets"],ja:"タナカさんは明日の午前9時に新入社員と会う予定だ。",ex:"助動詞 will の後ろは必ず動詞の原形。",w:"new employee 新入社員"},
+{t:"品詞",q:"Please read the instructions ____ before using the machine.",c:["carefully","careful","care","carefulness"],ja:"機械を使う前に、説明書を注意深く読んでください。",ex:"「read the instructions(説明書を読む)」という動作を修飾するのは副詞。-ly で終わる carefully を選ぶ。",w:"instructions 説明書・指示"},
+{t:"文法",q:"The store is closed ____ Sundays and national holidays.",c:["on","in","at","by"],ja:"その店は日曜日と祝日は休みだ。",ex:"曜日や特定の日の前は on。in は月・年・季節、at は時刻に使う。",w:"national holiday 祝日"},
+{t:"文法",q:"Our company ____ a new office in Osaka last year.",c:["opened","open","opens","will open"],ja:"当社は昨年、大阪に新しいオフィスを開設した。",ex:"last year(昨年)があるので過去形。時を表す語句は時制のヒントになる。",w:"open an office オフィスを開設する"},
+{t:"品詞",q:"The ____ for the marketing position must have at least three years of experience.",c:["applicant","apply","applied","applicable"],ja:"マーケティング職の応募者は、少なくとも3年の経験が必要だ。",ex:"冠詞 The の後ろで文の主語になるのは名詞。経験を「持つ」のは人なので applicant(応募者)。",w:"applicant 応募者 / at least 少なくとも"},
+{t:"文法",q:"Mr. Lee could not attend the meeting ____ he was sick.",c:["because","because of","although","despite"],ja:"リーさんは体調が悪かったので、会議に出席できなかった。",ex:"後ろに「主語+動詞」(he was) があるので接続詞。because of と despite は前置詞の働きで名詞が続く。although は「〜だけれども」で意味が合わない。",w:"attend 出席する"},
+{t:"文法",q:"Please turn off your mobile phones ____ the presentation.",c:["during","while","when","between"],ja:"プレゼンテーションの間は、携帯電話の電源をお切りください。",ex:"the presentation は名詞なので前置詞 during(〜の間)。while と when は接続詞で、後ろに主語+動詞が必要。",w:"turn off 電源を切る"},
+{t:"文法",q:"The new printer is much ____ than the old one.",c:["faster","fast","fastest","more fast"],ja:"新しいプリンターは古いものよりずっと速い。",ex:"than があるので比較級。much は比較級を強めて「ずっと」の意味になる。fast の比較級は faster。",w:"much + 比較級 ずっと〜"},
+{t:"語彙",q:"Customers can ____ a refund within 30 days of purchase.",c:["receive","achieve","attend","remind"],ja:"お客様は購入から30日以内であれば返金を受けられる。",ex:"refund(返金)を「受け取る」のは receive。achieve は「達成する」、attend は「出席する」、remind は「思い出させる」。",w:"refund 返金 / purchase 購入"},
+{t:"文法",q:"Please ____ me if you have any questions about the schedule.",c:["contact","contacting","contacts","to contact"],ja:"スケジュールについて質問があれば、私に連絡してください。",ex:"Please で始まる命令文なので、後ろは動詞の原形。",w:"contact 連絡する"},
+{t:"品詞",q:"The conference room is ____ on the third floor.",c:["located","locate","location","locating"],ja:"会議室は3階にある。",ex:"be located で「〜に位置している」。受け身の形なので過去分詞 located。",w:"be located 〜にある"},
+{t:"語彙",q:"We need to ____ a meeting room for the client visit.",c:["reserve","deserve","preserve","observe"],ja:"顧客の訪問のために会議室を予約する必要がある。",ex:"reserve は「予約する」。deserve は「〜に値する」、preserve は「保存する」、observe は「観察する」。つづりが似ているので注意。",w:"reserve 予約する"},
+{t:"文法",q:"The shipment ____ arrive by Thursday at the latest.",c:["should","has","is","having"],ja:"荷物は遅くとも木曜日までには届くはずだ。",ex:"後ろが動詞の原形 arrive なので助動詞 should(〜するはずだ)。has や is の後ろに原形は置けない。",w:"shipment 発送品・荷物 / at the latest 遅くとも"},
+{t:"語彙",q:"Ms. Kato is responsible ____ training new staff.",c:["for","to","with","at"],ja:"カトウさんは新人スタッフの研修を担当している。",ex:"be responsible for 〜 で「〜に責任がある・〜を担当している」。セットで覚えよう。",w:"be responsible for 〜を担当している"},
+{t:"品詞",q:"The sales team worked ____ to meet the deadline.",c:["hard","hardly","hardship","hardness"],ja:"営業チームは締め切りに間に合わせるために一生懸命働いた。",ex:"hard は「熱心に」という副詞としても使える。hardly は「ほとんど〜ない」という全く別の意味なので要注意。",w:"meet the deadline 締め切りに間に合わせる"},
+{t:"文法",q:"Lunch will be ____ in the cafeteria after the training session.",c:["served","serving","serve","server"],ja:"研修の後、昼食は社員食堂で出されます。",ex:"昼食は「出される」側なので受動態(be + 過去分詞)。",w:"serve (食事を)出す / cafeteria 社員食堂"},
+{t:"文法",q:"____ you need help with the software, call the IT department.",c:["If","Unless","So","But"],ja:"ソフトウェアで困ったら、IT部門に電話してください。",ex:"「もし〜なら」は If。Unless は「〜しない限り」で意味が逆になる。",w:"department 部門"},
+{t:"文法",q:"The company's profits have ____ by 10 percent this year.",c:["increased","increase","increasing","increases"],ja:"今年、同社の利益は10パーセント増えた。",ex:"have の後ろに過去分詞を置いて現在完了形にする。by 10 percent の by は「〜だけ(差)」。",w:"profit 利益"},
+{t:"品詞",q:"Each participant will receive a ____ of the presentation slides.",c:["copy","copier","copied","copies"],ja:"参加者はそれぞれ、プレゼン資料のコピーを1部受け取る。",ex:"冠詞 a の後ろは単数の名詞。copier は「コピー機」で意味が合わない。copies は複数形なので a と一緒に使えない。",w:"participant 参加者"},
+{t:"品詞",q:"The bus to the airport leaves every 15 minutes, so you won't have to wait ____.",c:["long","length","lengthen","longing"],ja:"空港行きのバスは15分ごとに出るので、長く待つ必要はない。",ex:"動詞 wait を修飾するので副詞の long(長く)。length は名詞、lengthen は動詞。",w:"every 15 minutes 15分ごとに"},
+{t:"語彙",q:"Please send the invoice to the ____ department.",c:["accounting","accountant","accountable","accounted"],ja:"請求書を経理部に送ってください。",ex:"accounting department で「経理部」。accountant は「会計士」という人を表す名詞。",w:"invoice 請求書"},
+{t:"文法",q:"The hotel offers free Wi-Fi to ____ guests.",c:["its","it","it's","itself"],ja:"そのホテルは宿泊客に無料Wi-Fiを提供している。",ex:"名詞 guests の前なので所有格 its(その)。it's は it is の短縮形なので注意。",w:"offer 提供する"},
+{t:"文法",q:"Mr. Brown has worked at this company ____ 2015.",c:["since","for","from","during"],ja:"ブラウンさんは2015年からこの会社で働いている。",ex:"現在完了と一緒に「〜以来」を表すのは since + 時点。for は for ten years のように期間に使う。",w:"since 〜以来"},
+{t:"品詞",q:"The training session was very ____, and everyone learned a lot.",c:["useful","use","usefully","usage"],ja:"研修はとても役に立ち、全員が多くを学んだ。",ex:"be動詞 was + very の後ろなので形容詞。主語の状態を説明する。",w:"training session 研修"},
+{t:"語彙",q:"Please ____ the attached file for more details.",c:["see","look","watch","listen"],ja:"詳しくは添付ファイルをご覧ください。",ex:"「〜をご覧ください」は see。look は look at の形が必要。watch は動くものを見るとき、listen は「聞く」。",w:"attached file 添付ファイル"},
+{t:"文法",q:"Tickets for the concert are available ____ the box office.",c:["at","on","to","of"],ja:"コンサートのチケットはチケット売り場で購入できる。",ex:"場所の「一点」を表すのは at。at the box office で「チケット売り場で」。",w:"available 入手できる / box office チケット売り場"},
+{t:"文法",q:"Neither the manager ____ her assistant was available to answer the phone.",c:["nor","or","and","but"],ja:"部長もアシスタントも、電話に出られなかった。",ex:"neither A nor B で「AもBも〜ない」。either A or B、both A and B とペアで覚えよう。",w:"neither A nor B AもBも〜ない"},
+{t:"語彙",q:"The company plans to ____ ten new employees next spring.",c:["hire","apply","retire","resign"],ja:"その会社は来春、新入社員を10人採用する予定だ。",ex:"employees を「雇う」のは hire。apply(応募する)、retire(退職する)、resign(辞職する)は人を目的語にとらない。",w:"hire 雇う"},
+{t:"文法",q:"Our office will be closed ____ the renovation work is completed.",c:["until","by","within","during"],ja:"改装工事が終わるまで、当社のオフィスは閉鎖される。",ex:"後ろに主語+動詞(the renovation work is)があるので接続詞 until(〜まで)。by・within・during は前置詞。",w:"renovation 改装"}
+],
+"730": [
+{t:"文法",q:"All receipts must be submitted ____ the end of the month in order to be reimbursed.",c:["by","until","since","within"],ja:"払い戻しを受けるには、すべての領収書を月末までに提出しなければならない。",ex:"by は「〜までに(期限)」、until は「〜までずっと(継続)」。提出は1回きりの動作なので by。",w:"receipt 領収書 / reimburse 払い戻す"},
+{t:"品詞",q:"The new software will allow employees to complete their tasks more ____.",c:["efficiently","efficient","efficiency","efficiencies"],ja:"新しいソフトウェアによって、社員はより効率的に業務を終えられるようになる。",ex:"動詞 complete を修飾するので副詞。more + 副詞で比較級になる。",w:"efficiently 効率的に / allow 人 to 〜 人が〜できるようにする"},
+{t:"語彙",q:"The meeting has been ____ until next Tuesday because the director is on a business trip.",c:["postponed","prevented","proposed","promoted"],ja:"部長が出張中のため、会議は来週火曜日まで延期された。",ex:"until next Tuesday と合うのは postpone(延期する)。prevent は「防ぐ」、propose は「提案する」、promote は「昇進させる・促進する」。",w:"postpone 延期する / business trip 出張"},
+{t:"文法",q:"____ the heavy rain, the outdoor event was held as scheduled.",c:["Despite","Although","Because","Even"],ja:"大雨にもかかわらず、屋外イベントは予定通り開催された。",ex:"後ろが名詞のかたまり(the heavy rain)なので前置詞 Despite。Although は接続詞で、主語+動詞が必要。",w:"as scheduled 予定通り"},
+{t:"文法",q:"Ms. Garcia was ____ to regional manager after only two years.",c:["promoted","promotion","promoting","promotes"],ja:"ガルシアさんはわずか2年で地域マネージャーに昇進した。",ex:"be promoted to 〜 で「〜に昇進する」。昇進は「させられる」ものなので受動態の過去分詞。",w:"promote 昇進させる / regional 地域の"},
+{t:"品詞",q:"The survey results indicate that customers are ____ satisfied with our service.",c:["generally","general","generalize","generality"],ja:"調査結果によると、顧客は当社のサービスにおおむね満足している。",ex:"形容詞 satisfied を修飾するのは副詞 generally(おおむね)。",w:"survey 調査 / indicate 示す"},
+{t:"文法",q:"Applicants ____ résumés are received after May 31 will not be considered.",c:["whose","who","which","whom"],ja:"5月31日以降に履歴書が届いた応募者は、選考の対象外となる。",ex:"「応募者の履歴書」という所有の関係なので whose。whose の直後には名詞(résumés)が続く。",w:"résumé 履歴書 / consider 検討する"},
+{t:"語彙",q:"Please ____ that all doors are locked before leaving the office.",c:["ensure","assure","endure","secure"],ja:"退社する前に、すべてのドアが施錠されていることを必ず確認してください。",ex:"ensure that 〜 で「〜を確実にする」。assure は assure 人 that の形で「人に保証する」。endure は「耐える」。",w:"ensure 確実にする"},
+{t:"品詞",q:"The manual provides ____ instructions on how to install the device.",c:["detailed","detail","detailing","details"],ja:"マニュアルには、装置の取り付け方について詳しい説明が載っている。",ex:"名詞 instructions を修飾する形容詞 detailed(詳しい)を選ぶ。",w:"install 取り付ける / device 装置"},
+{t:"文法",q:"If the client ____ the proposal, we will start the project next month.",c:["approves","will approve","approved","approving"],ja:"顧客が提案を承認すれば、来月プロジェクトを始める。",ex:"条件を表す if 節の中では、未来のことでも現在形を使う。主語が三人称単数なので approves。",w:"approve 承認する / proposal 提案"},
+{t:"品詞",q:"The company's sales have increased ____ since the new advertising campaign began.",c:["significantly","significant","significance","signify"],ja:"新しい広告キャンペーンが始まってから、同社の売上は大幅に伸びた。",ex:"動詞 increased を修飾するので副詞 significantly(大幅に)。",w:"significantly 大幅に"},
+{t:"語彙",q:"Mr. Patel will ____ the conference on behalf of the CEO.",c:["attend","participate","arrive","appear"],ja:"パテルさんはCEOの代理で会議に出席する。",ex:"attend は直接目的語をとれる(attend the conference)。participate は participate in、arrive は arrive at が必要。",w:"on behalf of 〜の代理で"},
+{t:"文法",q:"The package should be delivered ____ three business days.",c:["within","during","among","between"],ja:"荷物は3営業日以内に届くはずだ。",ex:"within + 期間で「〜以内に」。during は「〜の間ずっと」、among は3つ以上のものの「間で」。",w:"business day 営業日"},
+{t:"語彙",q:"Employees who wish to take vacation must submit a request at least two weeks in ____.",c:["advance","advanced","advancing","advancement"],ja:"休暇を取りたい社員は、少なくとも2週間前に申請しなければならない。",ex:"in advance で「前もって」というイディオム。two weeks in advance で「2週間前に」。",w:"in advance 前もって"},
+{t:"文法",q:"The restaurant is popular ____ its affordable prices and friendly staff.",c:["because of","because","so that","in order to"],ja:"そのレストランは手頃な価格と親しみやすいスタッフで人気がある。",ex:"後ろが名詞のかたまりなので、前置詞の働きをする because of。because は接続詞なので主語+動詞が必要。",w:"affordable 手頃な"},
+{t:"語彙",q:"The board of directors has not yet ____ a decision regarding the merger.",c:["made","done","gave","put"],ja:"取締役会は合併についてまだ決定を下していない。",ex:"「決定する」は make a decision。has の後なので過去分詞 made。do や give は decision と組み合わせない。",w:"board of directors 取締役会 / merger 合併"},
+{t:"語彙",q:"Our technicians are available to answer questions ____ the clock.",c:["around","over","through","across"],ja:"当社の技術者が24時間体制でご質問にお答えします。",ex:"around the clock で「24時間休みなく」。",w:"technician 技術者"},
+{t:"文法",q:"____ the budget is approved, construction will begin in April.",c:["Once","Due to","In spite of","Regarding"],ja:"予算が承認されれば、工事は4月に始まる。",ex:"後ろに主語+動詞があるので接続詞。once は「いったん〜すれば」。他の3つは前置詞の働きで、名詞が続く。",w:"budget 予算 / construction 工事"},
+{t:"品詞",q:"The marketing director asked her team to keep costs as low as ____.",c:["possible","possibly","possibility","possibilities"],ja:"マーケティング部長はチームに、コストをできるだけ低く抑えるよう求めた。",ex:"as 〜 as possible で「できるだけ〜」。形容詞 possible を使う決まった形。",w:"keep costs low コストを抑える"},
+{t:"品詞",q:"The new branch will be ____ located near the central station.",c:["conveniently","convenience","convenient","conveniences"],ja:"新しい支店は中央駅の近くの便利な場所に置かれる。",ex:"過去分詞 located を修飾するのは副詞。be conveniently located で「便利な場所にある」。",w:"branch 支店"},
+{t:"語彙",q:"Due to high demand, the product is temporarily out of ____.",c:["stock","store","order","shelf"],ja:"需要が高いため、その製品は一時的に在庫切れとなっている。",ex:"out of stock で「在庫切れ」。out of order は「故障中」なのでひっかけに注意。",w:"demand 需要 / temporarily 一時的に"},
+{t:"文法",q:"Ms. Chen, ____ joined the company last spring, has already won two sales awards.",c:["who","which","whom","whose"],ja:"昨年の春に入社したチェンさんは、すでに営業賞を2回受賞している。",ex:"先行詞が人(Ms. Chen)で、すぐ後ろに動詞 joined が続くので主格の who。",w:"join the company 入社する"},
+{t:"文法",q:"Visitors are required to sign in at the front desk ____ entering the laboratory.",c:["before","previous","prior","ahead"],ja:"来訪者は研究所に入る前に、受付で記名しなければならない。",ex:"before の後ろには動名詞(-ing)を置ける。prior は prior to、ahead は ahead of の形が必要。",w:"sign in 記名する / laboratory 研究所"},
+{t:"文法",q:"The quarterly report must be ____ by the department head before it is sent to the client.",c:["reviewed","reviewing","review","reviewer"],ja:"四半期報告書は、顧客に送る前に部長の確認を受けなければならない。",ex:"報告書は「確認される」側なので受動態(be + 過去分詞)。by 〜 は「〜によって」。",w:"quarterly 四半期の / department head 部長"},
+{t:"文法",q:"Thanks to the new system, customer complaints have ____ by 40 percent.",c:["decreased","decreasing","decrease","decreasingly"],ja:"新しいシステムのおかげで、顧客からの苦情は40パーセント減った。",ex:"have + 過去分詞で現在完了形。これまでの変化を表す。",w:"complaint 苦情 / thanks to 〜のおかげで"},
+{t:"品詞",q:"The CEO thanked the employees for their hard work and ____.",c:["dedication","dedicate","dedicated","dedicating"],ja:"CEOは社員の努力と献身に感謝した。",ex:"and で their hard work(名詞)と並んでいるので、同じく名詞の dedication。",w:"dedication 献身"},
+{t:"文法",q:"Please keep your receipt ____ you need to return the item.",c:["in case","so that","as if","even though"],ja:"商品を返品する場合に備えて、レシートを保管しておいてください。",ex:"in case 〜 で「〜する場合に備えて」。so that は「〜するために」、as if は「まるで〜のように」。",w:"return 返品する"},
+{t:"語彙",q:"The contract will ____ at the end of December unless it is renewed.",c:["expire","inspire","require","acquire"],ja:"契約は更新されない限り、12月末で期限切れとなる。",ex:"expire は「期限が切れる」。inspire(刺激を与える)、require(必要とする)、acquire(獲得する)と形が似ているので注意。",w:"contract 契約 / renew 更新する"},
+{t:"品詞",q:"Ms. Ito has ____ experience in international trade.",c:["extensive","extend","extension","extensively"],ja:"イトウさんは国際貿易の豊富な経験がある。",ex:"名詞 experience の前なので形容詞。extensive experience で「豊富な経験」。",w:"extensive 幅広い・豊富な"},
+{t:"品詞",q:"Hotel guests can ____ the fitness center free of charge.",c:["access","accessible","accessibly","accessibility"],ja:"ホテルの宿泊客はフィットネスセンターを無料で利用できる。",ex:"助動詞 can の後ろは動詞の原形。access は名詞と動詞の両方で使える。",w:"free of charge 無料で"}
+],
+"860": [
+{t:"文法",q:"The shipment was delayed, ____ several customers to cancel their orders.",c:["prompting","prompted","to prompt","prompt"],ja:"出荷が遅れたため、数人の顧客が注文をキャンセルすることになった。",ex:"カンマの後で、前の文の結果を表す分詞構文。「〜して、その結果…させた」は -ing の形。",w:"prompt 人 to 〜 人に〜するよう促す"},
+{t:"品詞",q:"Ms. Okada's proposal was approved ____ by the committee.",c:["unanimously","unanimous","unanimity","unanimousness"],ja:"オカダさんの提案は、委員会で満場一致で承認された。",ex:"受動態 was approved を修飾するのは副詞。unanimously で「満場一致で」。",w:"committee 委員会"},
+{t:"文法",q:"Only after the audit was completed ____ the extent of the accounting errors.",c:["did the firm realize","the firm realized","the firm did realize","realized the firm"],ja:"監査が終わって初めて、その会社は会計ミスの大きさに気づいた。",ex:"Only after 〜 が文頭に来ると、主節は疑問文と同じ語順(倒置)になる。did + 主語 + 動詞の原形。",w:"audit 監査 / extent 程度・範囲"},
+{t:"語彙",q:"The terms of the agreement ____ that payment be made within 30 days of delivery.",c:["stipulate","stimulate","speculate","substitute"],ja:"契約条件では、納品から30日以内に支払うことが定められている。",ex:"stipulate は「(契約などで)規定する」。that 節の動詞が原形 be になっている点(仮定法現在)もヒント。",w:"terms 条件 / stipulate 規定する"},
+{t:"文法",q:"____ the new regulations, all food suppliers must obtain a safety certificate.",c:["Under","Below","Beneath","Underneath"],ja:"新しい規制のもとでは、すべての食品業者が安全証明書を取得しなければならない。",ex:"under the regulations で「規則のもとで」。below・beneath・underneath は物理的な位置の「下」に使う。",w:"regulation 規制 / obtain 取得する"},
+{t:"品詞",q:"The firm's success is ____ attributable to its innovative marketing strategy.",c:["largely","large","largeness","enlarge"],ja:"その会社の成功は、主に革新的なマーケティング戦略によるものだ。",ex:"形容詞 attributable を修飾する副詞 largely(主に)。be attributable to 〜 は「〜に起因する」。",w:"attributable to 〜に起因する"},
+{t:"文法",q:"Had the client signed the contract earlier, the project ____ on schedule.",c:["would have been completed","will be completed","would complete","had completed"],ja:"顧客がもっと早く契約に署名していれば、プロジェクトは予定通り完了していただろう。",ex:"Had the client signed は If the client had signed の if を省いた倒置。過去の事実に反する仮定なので、主節は would have + 過去分詞。",w:"on schedule 予定通りに"},
+{t:"語彙",q:"The merger is ____ on approval from government regulators.",c:["contingent","consistent","convenient","confident"],ja:"合併は政府規制当局の承認が条件となっている。",ex:"be contingent on 〜 で「〜次第である・〜を条件とする」。consistent は「一貫した」、confident は「自信がある」。",w:"contingent on 〜次第の / regulator 規制当局"},
+{t:"文法",q:"Mr. Nakamura asked that the report ____ to him by noon.",c:["be sent","is sent","was sent","will be sent"],ja:"ナカムラさんは、報告書を正午までに自分に送るよう求めた。",ex:"ask・request・require などの後の that 節では、動詞は原形を使う(仮定法現在)。報告書は「送られる」ので be sent。",w:"request 求める"},
+{t:"語彙",q:"The new policy applies to all staff members, ____ of their position or length of service.",c:["regardless","despite","instead","because"],ja:"新しい方針は、役職や勤続年数に関係なく全社員に適用される。",ex:"regardless of 〜 で「〜に関係なく」。despite は of を伴わない。instead of は「〜の代わりに」。",w:"length of service 勤続年数"},
+{t:"語彙",q:"To ____ the delivery process, the company invested in an automated warehouse system.",c:["expedite","expire","exhibit","exempt"],ja:"配送を迅速化するため、その会社は自動倉庫システムに投資した。",ex:"expedite は「(手続きなどを)早める・迅速化する」。expire(期限が切れる)、exhibit(展示する)、exempt(免除する)。",w:"expedite 迅速化する / warehouse 倉庫"},
+{t:"文法",q:"Ms. Wong has managed several large teams, ____ makes her an ideal candidate for the position.",c:["which","that","what","it"],ja:"ウォンさんは大きなチームをいくつも率いてきた。そのため、このポジションに最適な候補者だ。",ex:"カンマの後で前の文全体を受けるのは , which(非制限用法)。that はカンマの後には使えない。",w:"candidate 候補者"},
+{t:"品詞",q:"Sales figures for the third quarter were ____ lower than analysts had predicted.",c:["considerably","considerate","considerable","consideration"],ja:"第3四半期の売上高は、アナリストの予想よりかなり低かった。",ex:"比較級 lower を強めるのは副詞 considerably(かなり)。considerate は「思いやりのある」という別の単語。",w:"sales figures 売上高 / quarter 四半期"},
+{t:"文法",q:"The company will reimburse employees for travel expenses ____ they submit the original receipts.",c:["provided that","so that","even if","in order that"],ja:"領収書の原本を提出すれば、会社は社員の出張費を払い戻す。",ex:"provided that 〜 で「〜という条件で」。so that と in order that は「〜するために」。",w:"travel expenses 出張費 / original 原本"},
+{t:"品詞",q:"The CEO's speech was so ____ that many employees volunteered for the new initiative.",c:["persuasive","persuade","persuasion","persuasively"],ja:"CEOのスピーチはとても説得力があり、多くの社員が新しい取り組みに志願した。",ex:"so + 形容詞 + that 〜 の構文。was の後で主語を説明するので形容詞。",w:"persuasive 説得力のある / initiative 取り組み"},
+{t:"品詞",q:"____ for the conference must be made by October 15 to receive the early-bird discount.",c:["Registrations","Register","Registered","Registrar"],ja:"早期割引を受けるには、10月15日までに会議への登録を済ませなければならない。",ex:"文の主語で「行われる」側(must be made)なので名詞。registrar は「登録係」という人を表すので意味が合わない。",w:"early-bird discount 早期割引"},
+{t:"語彙",q:"The factory has been operating at full ____ since the new orders arrived.",c:["capacity","capability","capital","caption"],ja:"新規の注文が入って以来、工場はフル稼働している。",ex:"at full capacity で「フル稼働で」。capability は「能力」で、at full とは組み合わせない。",w:"capacity 生産能力・収容能力"},
+{t:"語彙",q:"The renovation was completed ____ ahead of schedule.",c:["well","good","better","best"],ja:"改装工事は予定よりかなり早く完了した。",ex:"well ahead of 〜 で「〜よりかなり前に」。ahead of を強調する副詞の well。good は形容詞なので不可。",w:"ahead of schedule 予定より早く"},
+{t:"品詞",q:"All staff are reminded that confidential documents must not be left ____ on desks.",c:["unattended","unattending","attendance","attentive"],ja:"機密書類を机の上に放置しないよう、全社員に改めて注意します。",ex:"leave + 物 + 過去分詞で「〜を…の状態のままにする」。unattended は「放置された・付き添いのない」。",w:"confidential 機密の / unattended 放置された"},
+{t:"品詞",q:"The team has worked on the campaign for months, and the results have been ____.",c:["impressive","impressed","impression","impressively"],ja:"チームは何か月もキャンペーンに取り組み、その成果は目覚ましいものだ。",ex:"成果が人を「感心させる」側なので impressive。impressed は「(人が)感心した」という意味。",w:"impressive 見事な"},
+{t:"文法",q:"____ she had been with the company for only six months, Ms. Diaz was chosen to lead the project.",c:["Even though","Despite","Nevertheless","In spite"],ja:"入社してわずか6か月だったにもかかわらず、ディアスさんはプロジェクトのリーダーに選ばれた。",ex:"後ろに主語+動詞があるので接続詞 Even though。Despite と In spite of は前置詞、Nevertheless は副詞。",w:"lead 率いる"},
+{t:"語彙",q:"The new branch manager is ____ for overseeing daily operations and ensuring customer satisfaction.",c:["accountable","countable","accounted","accounting"],ja:"新支店長は、日々の業務の監督と顧客満足の確保に責任を負う。",ex:"be accountable for 〜 で「〜に責任を負う」。be responsible for と同じ意味でよく出る。",w:"oversee 監督する"},
+{t:"語彙",q:"Employees are encouraged to ____ any concerns about workplace safety with their supervisors.",c:["raise","rise","arise","arouse"],ja:"社員は、職場の安全に関する懸念を上司に伝えるよう推奨されている。",ex:"raise は他動詞で「(問題・懸念を)持ち出す」。rise と arise は自動詞なので目的語をとれない。",w:"concern 懸念 / supervisor 上司"},
+{t:"語彙",q:"Customers who purchase the extended warranty are ____ to free repairs for three years.",c:["entitled","eligible","capable","possible"],ja:"延長保証を購入したお客様は、3年間無料で修理を受けられる。",ex:"be entitled to + 名詞で「〜を受ける権利がある」。eligible は eligible for、capable は capable of の形になる。",w:"warranty 保証"},
+{t:"品詞",q:"Ms. Rossi is known for her ability to handle difficult situations ____.",c:["tactfully","tactful","tact","tactic"],ja:"ロッシさんは難しい状況をうまくさばく力で知られている。",ex:"動詞 handle を修飾するので副詞 tactfully(如才なく・うまく)。",w:"handle 対処する"},
+{t:"品詞",q:"The figures in the annual report have been ____ checked for accuracy.",c:["thoroughly","thorough","through","throughout"],ja:"年次報告書の数字は、正確さのために徹底的にチェックされている。",ex:"過去分詞 checked を修飾する副詞 thoroughly(徹底的に)。through と throughout は前置詞。",w:"accuracy 正確さ / annual report 年次報告書"},
+{t:"文法",q:"____ by the positive feedback, the company decided to expand the program nationwide.",c:["Encouraged","Encouraging","Encourage","To encourage"],ja:"好意的な反応に励まされ、その会社はプログラムを全国に広げることにした。",ex:"会社は「励まされた」側なので、過去分詞で始まる分詞構文。by 〜 もヒント。",w:"nationwide 全国的に"},
+{t:"語彙",q:"The negotiations reached a ____ after both parties refused to compromise.",c:["deadlock","deadline","headline","lockout"],ja:"両者が妥協を拒んだため、交渉は行き詰まった。",ex:"reach a deadlock で「行き詰まる」。deadline(締め切り)はよく出るひっかけ。",w:"compromise 妥協する"},
+{t:"文法",q:"No sooner had the product been launched ____ orders began pouring in.",c:["than","when","then","as"],ja:"製品が発売されるやいなや、注文が殺到し始めた。",ex:"No sooner had A + 過去分詞 ... than B で「AするやいなやB」。no sooner は than とセット。",w:"launch 発売する / pour in 殺到する"},
+{t:"語彙",q:"The marketing budget was ____ to cover the cost of the trade show.",c:["revised","revived","resided","retired"],ja:"展示会の費用をまかなうため、マーケティング予算が見直された。",ex:"revise は「修正する・見直す」。revive は「復活させる」、reside は「住む」、retire は「引退する」。",w:"trade show 見本市・展示会"}
+]
+};
+
+/* Scene: the canvas is its own evening-highway world, so it keeps one palette in both themes. */
+const C = {
+  sky1: "#0F2A3D", sky2: "#35587A", sky3: "#F0A868", fuji: "#5E5B82", snow: "#ECE8F4", city: "#1A2531", win: "#FFD27A",
+  grassA: "#2D6A4C", grassB: "#286045", rumA: "#D03828", rumB: "#EFEFE8", roadA: "#3A4047", roadB: "#353B42", line: "#EDEDE4",
+  haze: "rgba(240,168,104,.72)", hazeEnd: "rgba(240,168,104,0)", post: "#BFC8C5",
+  tile: "#FBFBF7", tileEdge: "#1D7364", tileText: "#1B2023",
+  car: "#D03828", carDark: "#8C2318", glass: "#1C2A33", light: "#FF5A45", plate: "#17694A", red: "#FF3B2A", gold: "#FFE08A",
+};
+const FONT_SIGN = '"BIZ UDPGothic","Hiragino Sans",system-ui,sans-serif';
+const FONT_DISPLAY = '"Dela Gothic One","Hiragino Sans",system-ui,sans-serif';
+const ZFAR = 20, ZCAR = 1, ZHIT = 1.3, V = 2.5, NITRO = 3.5;
+
+const MARK_OK = '<svg class="mark" viewBox="0 0 52 52" aria-hidden="true"><path d="M27 4.5C40 4 48.5 13 47.5 26C46.5 39 37 48 25 47.5C12.5 47 4 38 4.5 25.5C5 14 13 6.5 22 5"/></svg>';
+const MARK_NG = '<svg class="mark ng" viewBox="0 0 52 52" aria-hidden="true"><path d="M15 15L37 37"/><path d="M37 14L15 38"/></svg>';
+const still = (svg) => svg.replace('class="mark', 'class="mark still');
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (n) => Number(n || 0).toLocaleString("ja-JP");
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const getQ = (id) => { const [lv, n] = String(id).split(":"); return BANK[lv] && BANK[lv][+n]; };
+const comboMult = (c) => 1 + Math.min(Math.max(c - 1, 0), 5) * 0.2;
+function shuffle(a) {
+  a = a.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+// Options picked on the start screen. k stretches or shrinks the time before each word arrives.
+const SPEEDS = { slow: { label: "ゆっくり", k: 1.35 }, normal: { label: "ふつう", k: 1 }, fast: { label: "はやい", k: 0.75 } };
+const CARS = { red: ["#D03828", "#8C2318"], blue: ["#2F6FD0", "#1B3F7A"], yellow: ["#E8B021", "#8F6A0C"], white: ["#EEF1F0", "#9AA4A1"] };
+const OPT = { speed: "normal", qtype: "all", car: "red", hint: false, sound: true };
+// normal speed + all types keeps the original key, so earlier best scores still count
+const bestKey = (lv, mode, sp = OPT.speed, ty = OPT.qtype) =>
+  `p5sprint:best:${lv}:${mode}` + (sp === "normal" && ty === "all" ? "" : `:${sp}:${ty}`);
+
+function freshState() {
+  return { screen: "start", level: "600", mode: 10, review: false, items: [], i: 0, score: 0, combo: 0, maxCombo: 0,
+    answered: false, lastPts: 0, newBest: false, prevBest: 0, speed: "normal", qtype: "all" };
+}
+let S = freshState();
+const speedK = () => (SPEEDS[S.speed] || SPEEDS.normal).k;
+const roundTime = () => { const L = LEVEL_META[S.level]; return (L.first + 3 * L.gap) * speedK(); };
+const optLabel = () => [S.speed !== "normal" ? SPEEDS[S.speed].label : "", S.qtype !== "all" ? S.qtype : ""].filter(Boolean).join(" · ");
+
+/* ---------- sound (Web Audio, starts only after a click) ---------- */
+let AC = null;
+function audio() {
+  if (!OPT.sound) return null;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === "suspended") AC.resume();
+    return AC;
+  } catch { return null; }
+}
+function tone(ac, freq, t0, dur, type, vol, freqEnd) {
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t0);
+  if (freqEnd) o.frequency.exponentialRampToValueAtTime(freqEnd, t0 + dur);
+  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  o.connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function noise(ac, t0, dur, vol, f0, f1) {
+  const len = Math.floor(ac.sampleRate * dur), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const src = ac.createBufferSource(), flt = ac.createBiquadFilter(), g = ac.createGain();
+  src.buffer = buf; flt.type = "lowpass";
+  flt.frequency.setValueAtTime(f0, t0); flt.frequency.exponentialRampToValueAtTime(f1, t0 + dur);
+  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  src.connect(flt).connect(g).connect(ac.destination); src.start(t0); src.stop(t0 + dur);
+}
+function sfx(kind) {
+  const ac = audio();
+  if (!ac) return;
+  const t = ac.currentTime + 0.01;
+  if (kind === "hit") { tone(ac, 880, t, 0.12, "triangle", 0.2); tone(ac, 1320, t + 0.09, 0.22, "triangle", 0.2); }
+  else if (kind === "crash") { noise(ac, t, 0.6, 0.35, 2400, 120); tone(ac, 120, t, 0.35, "sine", 0.3, 40); }
+  else if (kind === "miss") { tone(ac, 330, t, 0.18, "square", 0.07); tone(ac, 220, t + 0.16, 0.25, "square", 0.07); }
+  else if (kind === "nitro") noise(ac, t, 0.35, 0.12, 600, 3000);
+  else if (kind === "start") [523, 659, 784].forEach((f, i) => tone(ac, f, t + i * 0.08, 0.14, "triangle", 0.15));
+}
+
+/* ---------- scene renderer ---------- */
+const roadHalf = (W, s) => W * 0.01 + s * W * 0.47;
+const centerX = (W, s, curve) => W / 2 + curve * W * 0.32 * (1 - s) * (1 - s);
+function rr(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, Math.max(0, r)); else ctx.rect(x, y, w, h);
+}
+function seeded(seed) { return () => (seed = (seed * 16807) % 2147483647) / 2147483647; }
+const MEAS = document.createElement("canvas").getContext("2d");
+// word block width, in units of the road's half-width
+function wuOf(text) { MEAS.font = `700 100px ${FONT_SIGN}`; return Math.min(0.85, (MEAS.measureText(text).width / 100) * 0.085 + 0.14); }
+
+const bgCache = new Map();
+function getBg(W, hy) {
+  const key = `${W}x${Math.round(hy)}`;
+  if (bgCache.has(key)) return bgCache.get(key);
+  if (bgCache.size > 6) bgCache.clear();
+  const bw = Math.ceil(W * 1.2), dpr = Math.min(2, devicePixelRatio || 1);
+  const c = document.createElement("canvas");
+  c.width = bw * dpr; c.height = Math.ceil(hy) * dpr;
+  const g = c.getContext("2d");
+  g.scale(dpr, dpr);
+  const sky = g.createLinearGradient(0, 0, 0, hy);
+  sky.addColorStop(0, C.sky1); sky.addColorStop(0.55, C.sky2); sky.addColorStop(1, C.sky3);
+  g.fillStyle = sky; g.fillRect(0, 0, bw, hy);
+  // Mt. Fuji on the horizon
+  const fx = bw * 0.62, fh = hy * 0.42, fw = bw * 0.2;
+  g.fillStyle = C.fuji; g.beginPath();
+  g.moveTo(fx - fw, hy); g.lineTo(fx - fw * 0.18, hy - fh); g.lineTo(fx + fw * 0.18, hy - fh); g.lineTo(fx + fw, hy); g.closePath(); g.fill();
+  g.fillStyle = C.snow; g.beginPath();
+  g.moveTo(fx - fw * 0.18, hy - fh); g.lineTo(fx + fw * 0.18, hy - fh); g.lineTo(fx + fw * 0.34, hy - fh * 0.64); g.lineTo(fx + fw * 0.2, hy - fh * 0.7);
+  g.lineTo(fx + fw * 0.1, hy - fh * 0.62); g.lineTo(fx, hy - fh * 0.72); g.lineTo(fx - fw * 0.12, hy - fh * 0.6); g.lineTo(fx - fw * 0.22, hy - fh * 0.7);
+  g.lineTo(fx - fw * 0.34, hy - fh * 0.64); g.closePath(); g.fill();
+  // office skyline
+  const rnd = seeded(7);
+  for (let x = 0; x < bw;) {
+    const w = bw * (0.018 + rnd() * 0.04), h = hy * (0.06 + rnd() * rnd() * 0.3);
+    g.fillStyle = C.city; g.fillRect(x, hy - h, w - 1, h);
+    g.fillStyle = C.win;
+    for (let wy = hy - h + 4; wy < hy - 3; wy += 5) for (let wx = x + 3; wx < x + w - 4; wx += 4) if (rnd() < 0.28) g.fillRect(wx, wy, 1.6, 1.8);
+    x += w;
+  }
+  const out = { c, bw };
+  bgCache.set(key, out);
+  return out;
+}
+
+function drawWords(ctx, W, hy, span, st) {
+  const list = (st.words || []).filter((w) => w.state !== "gone" && w.z > 0.55 && w.z < ZFAR).sort((a, b) => b.z - a.z);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const w of list) {
+    const s = 1 / w.z, y = hy + s * span, rh = roadHalf(W, s), cx = centerX(W, s, st.curve);
+    const x = cx + w.x * rh, bw = w.wu * rh, bh = Math.max(3, rh * 0.17);
+    const top = y - bh * 1.35 + Math.sin(st.travel * 1.3 + w.phase) * bh * 0.08;
+    ctx.globalAlpha = w.state === "fade" ? Math.max(0, w.fade) : 1;
+    ctx.fillStyle = "rgba(0,0,0,.28)"; ctx.beginPath(); ctx.ellipse(x, y, bw * 0.46, Math.max(1, bh * 0.12), 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = C.tile; rr(ctx, x - bw / 2, top, bw, bh, Math.min(bh * 0.28, 12)); ctx.fill();
+    if (bh > 8) { ctx.strokeStyle = C.tileEdge; ctx.lineWidth = Math.max(1, bh * 0.07); ctx.stroke(); }
+    let fs = bh * 0.5;
+    if (fs >= 5) {
+      ctx.font = `700 ${fs}px ${FONT_SIGN}`;
+      const tw = ctx.measureText(w.text).width;
+      if (tw > bw * 0.84) { fs *= (bw * 0.84) / tw; ctx.font = `700 ${fs}px ${FONT_SIGN}`; }
+      ctx.fillStyle = C.tileText; ctx.fillText(w.text, x, top + bh / 2 + fs * 0.04);
+    }
+    if (w.state === "wrong") {
+      const lw = Math.max(2.5, bh * 0.1);
+      for (const [col, wd] of [["#FFFFFF", lw * 1.9], [C.red, lw]]) {
+        ctx.strokeStyle = col; ctx.lineWidth = wd; ctx.lineCap = "round"; ctx.beginPath();
+        ctx.moveTo(x - bw * 0.36, top + bh * 0.12); ctx.lineTo(x + bw * 0.36, top + bh * 0.88);
+        ctx.moveTo(x + bw * 0.36, top + bh * 0.12); ctx.lineTo(x - bw * 0.36, top + bh * 0.88);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawCar(ctx, W, H, st) {
+  const rh = roadHalf(W, 1), cw = Math.min(rh * 0.33, H * 0.3), ch = cw * 0.6;
+  const x = W / 2 + st.carX * rh, y = H - H * 0.045;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(st.tilt + st.spin);
+  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(0, 0, cw * 0.56, ch * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#14171A"; ctx.fillRect(-cw * 0.47, -ch * 0.24, cw * 0.17, ch * 0.25); ctx.fillRect(cw * 0.3, -ch * 0.24, cw * 0.17, ch * 0.25);
+  const [body, dark] = CARS[OPT.car] || CARS.red;
+  ctx.fillStyle = dark; ctx.beginPath();
+  ctx.moveTo(-cw * 0.38, -ch * 0.58); ctx.lineTo(-cw * 0.28, -ch); ctx.lineTo(cw * 0.28, -ch); ctx.lineTo(cw * 0.38, -ch * 0.58); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = C.glass; ctx.beginPath();
+  ctx.moveTo(-cw * 0.31, -ch * 0.62); ctx.lineTo(-cw * 0.24, -ch * 0.93); ctx.lineTo(cw * 0.24, -ch * 0.93); ctx.lineTo(cw * 0.31, -ch * 0.62); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = body; rr(ctx, -cw / 2, -ch * 0.64, cw, ch * 0.48, ch * 0.12); ctx.fill();
+  ctx.fillStyle = C.light; rr(ctx, -cw * 0.45, -ch * 0.54, cw * 0.2, ch * 0.11, ch * 0.04); ctx.fill(); rr(ctx, cw * 0.25, -ch * 0.54, cw * 0.2, ch * 0.11, ch * 0.04); ctx.fill();
+  ctx.fillStyle = "#F4F6F3"; rr(ctx, -cw * 0.13, -ch * 0.41, cw * 0.26, ch * 0.15, ch * 0.03); ctx.fill();
+  ctx.fillStyle = C.plate; ctx.font = `700 ${Math.max(6, ch * 0.11)}px ${FONT_SIGN}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("P5 101", 0, -ch * 0.33);
+  ctx.fillStyle = dark; ctx.fillRect(-cw * 0.48, -ch * 0.2, cw * 0.96, ch * 0.05);
+  if (st.nitro) {
+    for (const ex of [-cw * 0.3, cw * 0.3]) {
+      const f = 0.7 + Math.random() * 0.6;
+      ctx.fillStyle = "rgba(255,160,50,.75)"; ctx.beginPath(); ctx.arc(ex, -ch * 0.16, ch * 0.16 * f, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#FFF1B8"; ctx.beginPath(); ctx.arc(ex, -ch * 0.16, ch * 0.07 * f, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.restore();
+  st.carHalf = cw / rh / 2;
+  return { x, y, w: cw, h: ch };
+}
+
+function drawScene(ctx, W, H, st) {
+  const hy = H * 0.36, span = H - hy, curve = st.curve;
+  ctx.save();
+  if (st.shake > 0.3) ctx.translate((Math.random() - 0.5) * st.shake, (Math.random() - 0.5) * st.shake);
+  const bg = getBg(W, hy);
+  ctx.drawImage(bg.c, -W * 0.1 - curve * W * 0.08, 0, bg.bw, hy);
+
+  // road, drawn as scanlines: alternating bands give the sense of speed
+  for (let y = Math.floor(hy); y < H; y += 2) {
+    const s = Math.max(0.004, (y - hy + 1) / span), z = 1 / s;
+    const band = Math.floor((z + st.travel) / 0.55) & 1;
+    const rh = roadHalf(W, s), cx = centerX(W, s, curve), rum = rh * 0.09;
+    ctx.fillStyle = band ? C.grassA : C.grassB; ctx.fillRect(0, y, W, 2);
+    ctx.fillStyle = band ? C.rumA : C.rumB; ctx.fillRect(cx - rh - rum, y, 2 * (rh + rum), 2);
+    ctx.fillStyle = band ? C.roadA : C.roadB; ctx.fillRect(cx - rh, y, 2 * rh, 2);
+    if (!band) {
+      const lw = Math.max(1, rh * 0.016);
+      ctx.fillStyle = C.line;
+      ctx.fillRect(cx - rh * 0.5 - lw / 2, y, lw, 2); ctx.fillRect(cx - lw / 2, y, lw, 2); ctx.fillRect(cx + rh * 0.5 - lw / 2, y, lw, 2);
+    }
+  }
+  const hz = ctx.createLinearGradient(0, hy, 0, hy + span * 0.16);
+  hz.addColorStop(0, C.haze); hz.addColorStop(1, C.hazeEnd);
+  ctx.fillStyle = hz; ctx.fillRect(0, hy, W, span * 0.16);
+
+  // street lamps, far to near
+  const gap = 2.4, first = Math.floor(st.travel / gap) * gap + gap;
+  for (let w = first + Math.floor(ZFAR / gap) * gap; w >= first; w -= gap) {
+    const z = w - st.travel;
+    if (z < 0.45 || z > ZFAR) continue;
+    const s = 1 / z, y = hy + s * span;
+    if (y > H * 1.5) continue;
+    const rh = roadHalf(W, s), cx = centerX(W, s, curve), lh = s * span * 0.8, pw = Math.max(1, s * W * 0.006);
+    for (const side of [-1, 1]) {
+      const px = cx + side * rh * 1.3;
+      ctx.fillStyle = C.post; ctx.fillRect(px - pw / 2, y - lh, pw, lh);
+      const arm = pw * 7, ax = side > 0 ? px - arm : px;
+      ctx.fillRect(ax, y - lh, arm, pw);
+      ctx.fillStyle = C.win; ctx.fillRect(side > 0 ? ax : ax + arm - pw * 2.5, y - lh + pw, pw * 2.5, pw * 1.2);
+    }
+  }
+
+  drawWords(ctx, W, hy, span, st);
+
+  if (st.nitro && !reduceMotion) {
+    ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 10; i++) {
+      const a = Math.PI * (0.05 + Math.random() * 0.9), r1 = W * (0.25 + Math.random() * 0.25), r2 = r1 + W * 0.18;
+      ctx.beginPath(); ctx.moveTo(W / 2 + Math.cos(a) * r1, hy + Math.sin(a) * r1 * 0.6); ctx.lineTo(W / 2 + Math.cos(a) * r2, hy + Math.sin(a) * r2 * 0.6); ctx.stroke();
+    }
+  }
+
+  const car = drawCar(ctx, W, H, st);
+  const ax = car.x, ay = car.y - car.h * 0.9;
+  if (st.ring) {
+    const t = st.ring.t / 0.7, r = car.w * (0.5 + t * 1.4);
+    ctx.globalAlpha = 1 - t;
+    for (const [col, wd] of [["#FFFFFF", 9], [C.red, 5]]) { ctx.strokeStyle = col; ctx.lineWidth = wd; ctx.beginPath(); ctx.ellipse(ax, ay, r, r * 0.62, -0.08, -1.2, -1.2 + Math.PI * 2.1); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+  }
+  for (const p of st.sparks || []) {
+    ctx.globalAlpha = Math.max(0, 1 - p.t / 0.9); ctx.fillStyle = p.c;
+    ctx.fillRect(ax + p.x - 3, ay + p.y - 3, 6, 6);
+  }
+  ctx.globalAlpha = 1;
+  for (const p of st.smoke || []) {
+    ctx.fillStyle = `rgba(205,210,214,${Math.max(0, 0.6 * (1 - p.t / 1.3))})`;
+    ctx.beginPath(); ctx.arc(car.x + p.x, car.y - car.h * 0.5 + p.y, p.r, 0, Math.PI * 2); ctx.fill();
+  }
+  for (const f of st.fx || []) {
+    ctx.globalAlpha = Math.max(0, 1 - f.t / 1.2);
+    ctx.font = `400 ${Math.round(Math.max(18, H * 0.075))}px ${FONT_DISPLAY}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const fy = car.y - car.h * 1.6 - f.t * H * 0.12;
+    ctx.lineWidth = 5; ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.strokeText(f.text, car.x, fy);
+    ctx.fillStyle = C.gold; ctx.fillText(f.text, car.x, fy);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
+function paint(cv, st) {
+  const r = cv.getBoundingClientRect();
+  if (r.width < 10 || r.height < 10) return;
+  const dpr = Math.min(2, devicePixelRatio || 1), w = Math.round(r.width), h = Math.round(r.height);
+  if (cv.width !== w * dpr || cv.height !== h * dpr) { cv.width = w * dpr; cv.height = h * dpr; }
+  const ctx = cv.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawScene(ctx, w, h, st);
+}
+
+/* ---------- world simulation (shared by the game and the demo) ---------- */
+function makeWords(list, first, gap) {
+  return list.map((w, j) => ({ ...w, x0: w.x, z: ZHIT + V * (first + j * gap), wu: wuOf(w.text), phase: Math.random() * 6.28, state: "live", fade: 1 }));
+}
+// Moves words toward the car; returns the word the car touched this frame, if any.
+function stepWords(st, v, dt, sway) {
+  let touched = null;
+  for (const w of st.words) {
+    if (w.state === "wrong" || w.state === "gone") continue;
+    const pz = w.z;
+    w.z -= v * dt;
+    if (w.state === "live") {
+      w.x = clamp(w.x0 + sway * Math.sin(w.phase + st.t * 1.6), -0.8, 0.8);
+      if (!touched && pz > ZHIT && w.z <= ZHIT) {
+        if (Math.abs(w.x - st.carX) < w.wu / 2 + st.carHalf * 0.85) touched = w; else w.state = "passed";
+      }
+    } else if (w.state === "fade") {
+      w.fade -= dt * 2.5;
+      if (w.fade <= 0) w.state = "gone";
+    }
+    if (w.z < 0.5 && w.state === "passed") w.state = "gone";
+  }
+  return touched;
+}
+function burst(st, text) {
+  st.fx.push({ text, t: 0 });
+  st.ring = { t: 0 };
+  st.sparks = Array.from({ length: 16 }, (_, i) => {
+    const a = (i / 16) * Math.PI * 2, sp = 120 + Math.random() * 90;
+    return { x: 0, y: 0, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, t: 0, c: i % 2 ? C.gold : C.red };
+  });
+}
+function stepFx(st, dt) {
+  st.fx = st.fx.filter((f) => (f.t += dt) < 1.2);
+  st.smoke = st.smoke.filter((p) => { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.r += dt * 26; return p.t < 1.3; });
+  st.sparks = st.sparks.filter((p) => { p.t += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 260 * dt; return p.t < 0.9; });
+  if (st.ring && (st.ring.t += dt) > 0.7) st.ring = null;
+}
+
+/* ---------- game runtime (not saved) ---------- */
+const inp = { left: false, right: false, nitro: false };
+const G = { phase: "idle", words: [], el: 0, t: 0, carX: 0, targetX: 0, carHalf: 0.165, tilt: 0, spin: 0, spinV: 0, shake: 0, crashV: 0,
+  travel: 0, curve: 0, curveT: 0, nitro: false, fx: [], smoke: [], sparks: [], ring: null, phaseT: 0, last: 0 };
+
+const DEMO = [
+  { o: 1, text: "careful", x: -0.5 },
+  { o: 2, text: "care", x: 0.45 },
+  { o: 0, text: "carefully", x: -0.1 },
+  { o: 3, text: "carefulness", x: 0.55 },
+];
+const D = { phase: "drive", words: [], t: 0, carX: 0.4, targetX: 0.4, carHalf: 0.165, tilt: 0, spin: 0, shake: 0, travel: 0, curve: 0, curveT: 0,
+  nitro: false, fx: [], smoke: [], sparks: [], ring: null, phaseT: 0 };
+function demoReset() {
+  Object.assign(D, { words: makeWords(DEMO, 3.2, 1.5), carX: 0.4, targetX: 0.4, t: 0, phase: "drive", phaseT: 0, nitro: false });
+}
+function demoUpdate(dt) {
+  D.curveT += dt * 0.3; D.curve = Math.sin(D.curveT) * 0.5; D.t += dt;
+  let v;
+  if (D.phase === "drive") {
+    if (D.t > 1.2) D.targetX = -0.1;
+    const good = D.words.find((w) => w.o === 0);
+    D.nitro = D.t > 5 && good.state === "live";
+    v = V * (D.nitro ? NITRO * 0.7 : 1);
+    const prev = D.carX;
+    D.carX += (D.targetX - D.carX) * Math.min(1, dt * 3);
+    D.tilt = dt ? clamp(((D.carX - prev) / dt) * 0.09, -0.22, 0.22) : 0;
+    const w = stepWords(D, v, dt, 0);
+    if (w && w.o === 0) {
+      w.state = "gone";
+      D.words.forEach((o) => { if (o.state === "live") { o.state = "fade"; o.fade = 1; } });
+      burst(D, "+185"); D.phase = "pass"; D.phaseT = 1.6; D.nitro = false;
+    } else if (w) w.state = "passed";
+  } else {
+    v = V * 1.4; stepWords(D, v, dt, 0);
+    D.tilt *= 0.9;
+    if ((D.phaseT -= dt) <= 0) demoReset();
+  }
+  D.travel += v * dt;
+  stepFx(D, dt);
+}
+
+function update(dt) {
+  const L = LEVEL_META[S.level];
+  const steer = (inp.right ? 1 : 0) - (inp.left ? 1 : 0);
+  const prevX = G.carX;
+  if (G.phase === "drive") {
+    if (steer) G.targetX = clamp(G.targetX + steer * 2.1 * dt, -0.85, 0.85);
+    G.carX += (G.targetX - G.carX) * Math.min(1, dt * 10);
+  }
+  G.tilt = dt ? clamp(((G.carX - prevX) / dt) * 0.09, -0.22, 0.22) : G.tilt;
+  const boost = G.phase === "drive" && inp.nitro;
+  if (boost !== G.nitro) {
+    G.nitro = boost;
+    $("#nitro").classList.toggle("on", boost);
+    if (boost) sfx("nitro");
+  }
+  let v = 0;
+  if (G.phase === "drive") {
+    v = V * (G.nitro ? NITRO : 1);
+    G.el += dt; G.t += dt;
+    const w = stepWords(G, v, dt, L.sway);
+    if (w) hit(w);
+    else if (!G.words.some((o) => o.state === "live")) miss();
+  } else if (G.phase === "pass") {
+    v = V * 1.4; stepWords(G, v, dt, 0);
+    if ((G.phaseT -= dt) <= 0) { next(); return; }
+  } else if (G.phase === "crash") {
+    G.crashV *= Math.pow(0.002, dt); v = G.crashV;
+    G.spin += G.spinV * dt; G.spinV *= Math.pow(0.04, dt); G.shake *= Math.pow(0.02, dt);
+    if ((G.phaseT -= dt) <= 0) { G.phase = "pit"; G.shake = 0; showPit(); }
+  } else if (G.phase === "stop") {
+    G.crashV *= Math.pow(0.03, dt); v = G.crashV; stepWords(G, v, dt, 0);
+    if ((G.phaseT -= dt) <= 0) { G.phase = "pit"; showPit(); }
+  }
+  if (G.phase === "drive" || G.phase === "pass") { G.curveT += dt * 0.22; G.curve = Math.sin(G.curveT) * 0.5; }
+  G.travel += v * dt;
+  stepFx(G, dt);
+}
+
+function updateMeter() {
+  const RT = roundTime(), left = Math.max(0, RT - G.el);
+  $("#tleft").textContent = left.toFixed(1);
+  $("#mbar").style.transform = `scaleX(${left / RT})`;
+  $("#meter").classList.toggle("low", G.phase === "drive" && left < 3);
+}
+
+function frame(now) {
+  const dt = G.last ? Math.min(0.05, (now - G.last) / 1000) : 0;
+  G.last = now;
+  if (S.screen === "play" && G.phase !== "idle") { update(dt); if (S.screen === "play") { paint($("#cv"), G); updateMeter(); } }
+  else if (S.screen === "start" && !reduceMotion) { demoUpdate(dt); paint($("#demo"), D); }
+  requestAnimationFrame(frame);
+}
+
+/* ---------- screens ---------- */
+function show(name) {
+  for (const id of ["start", "play", "result"]) $("#" + id).hidden = id !== name;
+  S.screen = name;
+  if (name === "start") { syncStart(); paint($("#demo"), D); }
+  if (name !== "play") { G.phase = "idle"; inp.left = inp.right = inp.nitro = false; }
+  window.scrollTo(0, 0);
+}
+
+function syncStart() {
+  $$('input[name="level"]').forEach((r) => { r.checked = r.value === S.level; r.closest("label").classList.toggle("on", r.checked); });
+  $$('input[name="mode"]').forEach((r) => { r.checked = +r.value === S.mode; r.closest("label").classList.toggle("on", r.checked); });
+  for (const name of ["speed", "qtype", "car"]) {
+    $$(`input[name="${name}"]`).forEach((r) => { r.checked = r.value === OPT[name]; r.closest("label").classList.toggle("on", r.checked); });
+  }
+  $("#opt-hint").checked = OPT.hint;
+  $("#opt-sound").checked = OPT.sound;
+  for (const lv of Object.keys(LEVEL_META)) {
+    const v = store.get(bestKey(lv, S.mode));
+    $("#best-" + lv).innerHTML = `<small>ベスト</small>${v ? fmt(v) : "未挑戦"}`;
+  }
+}
+
+function startRound(level, mode, reviewIds) {
+  const pool = BANK[level].map((q, n) => ({ q, id: `${level}:${n}` })).filter((x) => OPT.qtype === "all" || x.q.t === OPT.qtype);
+  const ids = reviewIds || shuffle(pool.map((x) => x.id)).slice(0, mode);
+  S = { ...freshState(), screen: "play", level, mode, review: !!reviewIds, speed: OPT.speed, qtype: OPT.qtype,
+    items: ids.map((id) => ({ id, opts: shuffle([0, 1, 2, 3]), pick: null, ok: null, time: null })) };
+  G.carX = G.targetX = 0;
+  show("play");
+  startQuestion();
+  sfx("start");
+}
+
+/* ---------- play ---------- */
+function sentence(q, fill) {
+  const [a, b] = q.q.split("____");
+  return `${esc(a)}<span class="blank${fill ? " filled" : ""}">${fill ? esc(fill) : "-------"}</span>${esc(b ?? "")}`;
+}
+
+function renderStrip(el, items, cur) {
+  el.innerHTML = items.map((it, n) => {
+    const mark = it.ok === true ? still(MARK_OK) : it.ok === false ? still(MARK_NG) : "";
+    const filled = it.pick !== null && it.pick !== undefined;
+    return `<li class="cell${n === cur ? " cur" : ""}"><span>${101 + n}</span><span class="dot${filled ? " filled" : ""}">${mark}</span></li>`;
+  }).join("");
+}
+
+function renderHud() {
+  const m = LEVEL_META[S.level];
+  const extra = optLabel();
+  $("#hud-level").textContent = `${m.title} ${m.label}${extra ? " · " + extra : ""}${S.review ? " · 復習" : ""} · ${S.i + 1}/${S.items.length}`;
+  $("#hud-score").textContent = fmt(S.score);
+  const c = $("#hud-combo");
+  const txt = S.combo >= 2 ? `COMBO ${S.combo} ×${comboMult(S.combo).toFixed(1)}` : "";
+  if (txt !== c.textContent) {
+    c.textContent = txt;
+    if (txt && !reduceMotion) { c.classList.remove("pop"); void c.offsetWidth; c.classList.add("pop"); }
+  }
+}
+
+function toast(text, ok) {
+  const t = $("#toast");
+  t.hidden = true; t.className = `toast ${ok ? "ok" : "ng"}`; t.textContent = text;
+  void t.offsetWidth; t.hidden = false;
+}
+
+function startQuestion() {
+  const it = S.items[S.i], q = getQ(it.id), L = LEVEL_META[S.level];
+  const xs = [];
+  for (let j = 0; j < 4; j++) {
+    let x, tries = 0;
+    do { x = Math.random() * 1.4 - 0.7; } while (j && Math.abs(x - xs[j - 1]) < 0.35 && ++tries < 12);
+    xs.push(x);
+  }
+  Object.assign(G, { phase: "drive", el: 0, t: 0, nitro: false, spin: 0, spinV: 0, shake: 0, smoke: [], sparks: [], ring: null,
+    words: makeWords(it.opts.map((o, j) => ({ o, text: q.c[o], x: xs[j] })), L.first * speedK(), L.gap * speedK()) });
+  renderHud();
+  renderStrip($("#strip"), S.items, S.i);
+  $("#qnum").textContent = `${101 + S.i}.`;
+  $("#qtag").textContent = q.t;
+  $("#qtext").innerHTML = sentence(q, null);
+  $("#qja").textContent = q.ja;
+  $("#qja").hidden = !OPT.hint;
+  $("#words").innerHTML = it.opts.map((o, j) =>
+    `<span class="wchip" data-o="${o}"><span class="bub">${j + 1}</span><span class="cw">${esc(q.c[o])}</span></span>`
+  ).join("");
+  $("#toast").hidden = true;
+  $("#pit").hidden = true;
+  $("#nitro").classList.remove("on");
+}
+
+function score(pick) {
+  const it = S.items[S.i], RT = roundTime();
+  it.pick = pick;
+  it.ok = pick === 0;
+  it.time = +Math.min(RT, G.el).toFixed(1);
+  let pts = 0;
+  if (it.ok) {
+    S.combo++;
+    S.maxCombo = Math.max(S.maxCombo, S.combo);
+    pts = Math.round((100 + Math.ceil(Math.max(0, RT - G.el)) * 5) * comboMult(S.combo));
+    S.score += pts;
+  } else {
+    S.combo = 0;
+  }
+  S.lastPts = pts;
+  S.answered = true;
+  G.nitro = false;
+  return it;
+}
+
+function hit(w) {
+  const it = score(w.o);
+  sfx(it.ok ? "hit" : "crash");
+  if (it.ok) {
+    w.state = "gone";
+    G.words.forEach((o) => { if (o.state === "live") { o.state = "fade"; o.fade = 1; } });
+    G.phase = "pass"; G.phaseT = 1.2;
+    burst(G, `+${fmt(S.lastPts)}`);
+  } else {
+    w.state = "wrong"; w.z = ZHIT;
+    G.phase = "crash"; G.phaseT = 1.1;
+    G.crashV = V; G.spinV = 11 * (w.x < G.carX ? 1 : -1); G.shake = reduceMotion ? 0 : 16;
+    G.smoke = Array.from({ length: 9 }, () => ({ x: (Math.random() - 0.5) * 40, y: 0, vx: (Math.random() - 0.5) * 70, vy: -30 - Math.random() * 50, r: 6 + Math.random() * 8, t: Math.random() * 0.2 }));
+  }
+  paintResolved();
+}
+
+function miss() {
+  score(null);
+  sfx("miss");
+  G.phase = "stop"; G.phaseT = 0.8; G.crashV = V;
+  paintResolved();
+}
+
+function paintResolved() {
+  const it = S.items[S.i], q = getQ(it.id);
+  $("#qtext").innerHTML = sentence(q, q.c[0]);
+  $$(".wchip").forEach((ch) => {
+    const o = +ch.dataset.o;
+    ch.classList.toggle("right", o === 0);
+    ch.classList.toggle("hit", o === it.pick);
+    ch.classList.toggle("dim", o !== 0 && o !== it.pick);
+  });
+  $('.wchip[data-o="0"] .bub').insertAdjacentHTML("beforeend", MARK_OK);
+  if (it.pick !== null && !it.ok) $(`.wchip[data-o="${it.pick}"] .bub`).insertAdjacentHTML("beforeend", MARK_NG);
+  toast(it.ok ? `正解 +${fmt(S.lastPts)}${S.combo >= 2 ? `  COMBO ${S.combo}` : ""}` : it.pick === null ? "スルー" : "クラッシュ！", it.ok);
+  renderHud();
+  renderStrip($("#strip"), S.items, S.i);
+  $("#nitro").classList.remove("on");
+}
+
+function showPit() {
+  const it = S.items[S.i], q = getQ(it.id);
+  const last = S.i + 1 >= S.items.length;
+  const head = it.pick === null
+    ? `<span class="v ng">スルー</span><span class="muted">正しい単語をのがしました</span>`
+    : `<span class="v ng">不正解</span><span class="muted">ぶつかった単語: <span lang="en">${esc(q.c[it.pick])}</span></span>`;
+  $("#pit").innerHTML = `
+    <div class="pit-head"><span class="eyebrow red">PIT STOP</span>${head}</div>
+    <dl class="exp">
+      <div><dt>正解</dt><dd><b class="ans" lang="en">${esc(q.c[0])}</b></dd></div>
+      <div><dt>和訳</dt><dd>${esc(q.ja)}</dd></div>
+      <div><dt>ポイント</dt><dd>${esc(q.ex)}</dd></div>
+      <div><dt>語彙</dt><dd>${esc(q.w)}</dd></div>
+    </dl>
+    <button class="btn primary" id="next" type="button">${last ? "結果を見る" : "再スタート"} <kbd>Enter</kbd></button>`;
+  $("#pit").hidden = false;
+  $("#next").addEventListener("click", next);
+  $("#next").focus({ preventScroll: true });
+  $("#pit").scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+}
+
+function next() {
+  if (S.screen !== "play" || !S.answered) return;
+  $("#pit").hidden = true;
+  if (S.i + 1 >= S.items.length) { finish(); return; }
+  S.i++;
+  S.answered = false;
+  startQuestion();
+  if (window.scrollY > $("#play").offsetTop + 4) $("#play").scrollIntoView({ block: "start" });
+}
+
+function finish() {
+  G.phase = "idle";
+  if (!S.review) {
+    const k = bestKey(S.level, S.mode, S.speed, S.qtype);
+    S.prevBest = store.get(k) || 0;
+    S.newBest = S.score > S.prevBest;
+    if (S.newBest) store.set(k, S.score);
+  }
+  renderResult();
+  show("result");
+}
+
+/* ---------- result ---------- */
+function renderResult() {
+  const n = S.items.length;
+  const ok = S.items.filter((it) => it.ok).length;
+  const acc = Math.round((ok / n) * 100);
+  const hits = S.items.filter((it) => it.ok);
+  const avg = hits.length ? hits.reduce((s, it) => s + it.time, 0) / hits.length : 0;
+  const stamp = acc === 100 ? ["たいへん", "よくできました"] : acc >= 80 ? ["よく", "できました"] : acc >= 50 ? ["がんばり", "ました"] : ["もう", "すこし"];
+  const types = TYPES.map((t) => {
+    const xs = S.items.filter((it) => getQ(it.id).t === t);
+    return { t, n: xs.length, ok: xs.filter((it) => it.ok).length };
+  }).filter((x) => x.n);
+  const weak = types.filter((x) => x.ok < x.n).sort((a, b) => a.ok / a.n - b.ok / b.n)[0];
+  const missed = S.items.map((it, idx) => ({ it, idx })).filter((x) => !x.it.ok);
+  const m = LEVEL_META[S.level];
+  const extra = optLabel();
+  const modeLabel = (S.review ? `復習 ${n}問` : S.mode === 30 ? "フル 30問" : "ショート 10問") + (extra ? ` · ${extra}` : "");
+  const bestLine = S.review ? "復習モードの得点はベストに記録されません"
+    : S.newBest ? `自己ベスト更新${S.prevBest ? `(前回 ${fmt(S.prevBest)})` : ""}`
+    : `自己ベスト ${fmt(S.prevBest)}`;
+
+  const missHTML = ({ it, idx }) => {
+    const q = getQ(it.id);
+    const yours = it.pick === null ? "スルー" : `あなた <span lang="en">${esc(q.c[it.pick])}</span>`;
+    return `<article class="miss">
+      <div class="miss-head"><span class="qnum">${101 + idx}.</span><span class="chip">${q.t}</span><span class="yours">${yours}</span><span class="right">正解 <span lang="en">${esc(q.c[0])}</span></span></div>
+      <p class="qtext sm" lang="en">${sentence(q, q.c[0])}</p>
+      <dl class="exp">
+        <div><dt>和訳</dt><dd>${esc(q.ja)}</dd></div>
+        <div><dt>ポイント</dt><dd>${esc(q.ex)}</dd></div>
+        <div><dt>語彙</dt><dd>${esc(q.w)}</dd></div>
+      </dl>
+    </article>`;
+  };
+
+  $("#result").innerHTML = `
+    <header class="res-head"><p class="eyebrow">${m.title} ${m.label} · ${modeLabel}</p><h2>ゴール</h2></header>
+    <div class="res-top">
+      <div class="res-score"><small>SCORE</small><span class="big">${fmt(S.score)}</span><span class="best${S.newBest ? " new" : ""}">${bestLine}</span></div>
+      <div class="stamp" role="img" aria-label="${stamp.join("")}"><span>${stamp[0]}<br>${stamp[1]}</span></div>
+    </div>
+    <dl class="stats">
+      <div><dt>正解</dt><dd>${ok}<small> / ${n}</small></dd></div>
+      <div><dt>ミス</dt><dd>${n - ok}<small> 回</small></dd></div>
+      <div><dt>正解までの平均</dt><dd>${avg.toFixed(1)}<small> 秒</small></dd></div>
+      <div><dt>最大コンボ</dt><dd>${S.maxCombo}</dd></div>
+    </dl>
+    <div class="actions">
+      <button class="btn primary" id="again" type="button">もう一度走る</button>
+      <button class="btn" id="redo" type="button"${missed.length ? "" : " disabled"}>間違えた${missed.length}問を復習</button>
+      <button class="btn ghost" id="home" type="button">レベルを変える</button>
+    </div>
+    <section class="panel">
+      <h3>タイプ別の正答率 <span class="muted">${acc}%</span></h3>
+      <div class="types">${types.map((x) => `<div class="trow"><span class="tname">${x.t}</span><span class="tbar"><i style="width:${(x.ok / x.n) * 100}%"></i></span><span class="tnum">${x.ok} / ${x.n}</span></div>`).join("")}</div>
+      ${weak ? `<p class="hint"><b>「${weak.t}」が一番の伸びしろです。</b>${TYPE_TIPS[weak.t]}</p>` : ""}
+    </section>
+    <section class="panel">
+      <h3>答案用紙</h3>
+      <ol class="strip" id="res-strip"></ol>
+    </section>
+    <section class="panel">
+      <h3>間違えた問題 <span class="muted">${missed.length}問</span></h3>
+      ${missed.length ? missed.map(missHTML).join("") : `<p class="muted">全問正解です。次はひとつ上のレベルに挑戦してみましょう。</p>`}
+    </section>`;
+  renderStrip($("#res-strip"), S.items, -1);
+  $("#again").addEventListener("click", () => startRound(S.level, S.mode));
+  $("#redo").addEventListener("click", () => startRound(S.level, S.mode, missed.map((x) => x.it.id)));
+  $("#home").addEventListener("click", () => { const { level, mode } = S; S = { ...freshState(), level, mode }; show("start"); });
+}
+
+/* ---------- input ---------- */
+let quitArmed = false, quitT = 0;
+function setQuit(on) {
+  quitArmed = on;
+  const b = $("#quit");
+  b.textContent = on ? "もう一度押すと終了" : "やめる";
+  b.classList.toggle("armed", on);
+}
+const KEYMAP = { arrowleft: "left", a: "left", arrowright: "right", d: "right", arrowup: "nitro", w: "nitro", " ": "nitro" };
+
+function bind() {
+  const savePref = () => store.set("p5sprint:pref", { level: S.level, mode: S.mode, ...OPT });
+  $$('input[name="level"]').forEach((r) => r.addEventListener("change", () => { S.level = r.value; savePref(); syncStart(); }));
+  $$('input[name="mode"]').forEach((r) => r.addEventListener("change", () => { S.mode = +r.value; savePref(); syncStart(); }));
+  for (const name of ["speed", "qtype", "car"]) {
+    $$(`input[name="${name}"]`).forEach((r) => r.addEventListener("change", () => { OPT[name] = r.value; savePref(); syncStart(); }));
+  }
+  $("#opt-hint").addEventListener("change", (e) => { OPT.hint = e.target.checked; savePref(); });
+  $("#opt-sound").addEventListener("change", (e) => { OPT.sound = e.target.checked; savePref(); if (OPT.sound) sfx("hit"); });
+  $("#go").addEventListener("click", () => startRound(S.level, S.mode));
+
+  // hold-to-steer and hold-to-boost buttons
+  for (const [id, key] of [["#left", "left"], ["#right", "right"], ["#nitro", "nitro"]]) {
+    const el = $(id);
+    el.addEventListener("pointerdown", (e) => { e.preventDefault(); inp[key] = true; el.setPointerCapture?.(e.pointerId); });
+    for (const ev of ["pointerup", "pointercancel", "lostpointercapture"]) el.addEventListener(ev, () => { inp[key] = false; });
+    el.addEventListener("contextmenu", (e) => e.preventDefault());
+  }
+
+  // drag on the road to steer
+  const cv = $("#cv");
+  let dragging = false;
+  const steerTo = (e) => {
+    const r = cv.getBoundingClientRect(), rh = roadHalf(r.width, 1);
+    G.targetX = clamp((e.clientX - r.left - r.width / 2) / rh, -0.85, 0.85);
+  };
+  cv.addEventListener("pointerdown", (e) => { if (G.phase !== "drive") return; dragging = true; cv.setPointerCapture?.(e.pointerId); steerTo(e); });
+  cv.addEventListener("pointermove", (e) => { if (dragging && G.phase === "drive") steerTo(e); });
+  for (const ev of ["pointerup", "pointercancel"]) cv.addEventListener(ev, () => { dragging = false; });
+
+  $("#quit").addEventListener("click", () => {
+    if (!quitArmed) { setQuit(true); clearTimeout(quitT); quitT = setTimeout(() => setQuit(false), 3000); return; }
+    clearTimeout(quitT); setQuit(false);
+    const { level, mode } = S;
+    S = { ...freshState(), level, mode };
+    show("start");
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (S.screen !== "play" || e.metaKey || e.ctrlKey || e.altKey) return;
+    const key = e.key.toLowerCase();
+    if (G.phase === "pit") {
+      if ((key === "enter" || key === " ") && !(e.target.closest && e.target.closest("button"))) { e.preventDefault(); next(); }
+      return;
+    }
+    const k = KEYMAP[key];
+    if (k) { e.preventDefault(); inp[k] = true; }
+  });
+  document.addEventListener("keyup", (e) => { const k = KEYMAP[e.key.toLowerCase()]; if (k) inp[k] = false; });
+  window.addEventListener("blur", () => { inp.left = inp.right = inp.nitro = false; });
+  if (reduceMotion) new ResizeObserver(() => paint($("#demo"), D)).observe($("#demo"));
+}
+
+/* ---------- boot (keeps a run in progress across live updates) ---------- */
+window.claude?.hot?.snapshot?.(() => ({ ...S }));
+
+function boot(data) {
+  bind();
+  demoReset();
+  if (reduceMotion) {
+    [5, 3.6, 2.3, 7].forEach((z, j) => { D.words[j].z = z; });
+    D.carX = D.targetX = -0.05;
+  }
+  const pref = store.get("p5sprint:pref");
+  if (pref && LEVEL_META[pref.level]) S.level = pref.level;
+  if (pref && (pref.mode === 10 || pref.mode === 30)) S.mode = pref.mode;
+  if (pref && SPEEDS[pref.speed]) OPT.speed = pref.speed;
+  if (pref && (pref.qtype === "all" || TYPES.includes(pref.qtype))) OPT.qtype = pref.qtype;
+  if (pref && CARS[pref.car]) OPT.car = pref.car;
+  if (pref && typeof pref.hint === "boolean") OPT.hint = pref.hint;
+  if (pref && typeof pref.sound === "boolean") OPT.sound = pref.sound;
+  const valid = data && data.screen && Array.isArray(data.items) && data.items.every((it) => getQ(it.id));
+  if (valid) S = { ...freshState(), ...data };
+  if (S.screen === "play" && S.items.length) {
+    show("play");
+    const it = S.items[S.i];
+    if (!S.answered) startQuestion();
+    else if (it.ok) next();
+    else { startQuestion(); G.words = []; G.phase = "pit"; paintResolved(); showPit(); }
+  } else if (S.screen === "result" && S.items.length) {
+    renderResult();
+    show("result");
+  } else {
+    show("start");
+  }
+  requestAnimationFrame(frame);
+}
+window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
+</script>
+
+</body>
+</html>
